@@ -1,0 +1,36 @@
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: libery-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: libery
+      POSTGRES_PASSWORD: libery_dev
+      POSTGRES_DB: libery
+    ports:
+      - "5433:5432"
+    volumes:
+      - libery_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U libery -d libery"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: libery-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - libery_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  libery_pg_data:
+  libery_redis_data:

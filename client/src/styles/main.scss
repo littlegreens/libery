@@ -1,0 +1,2373 @@
+@import url('https://fonts.googleapis.com/css2?family=Titillium+Web:ital,wght@0,300;0,400;0,600;0,700;1,400&display=swap');
+
+/**
+ * Tema Libery
+ *  - $libery-bg            → sfondo corpo app (bianco)
+ *  - $libery-yellow        → giallo primario (header, accenti, hero brand)
+ *  - $libery-yellow-soft   → giallo chiaro (intestazione libro, link attivo sidebar)
+ *  - $libery-surface       → card neutre sopra al bianco
+ *  - $libery-ink           → testi e titoli (quasi nero)
+ *  - $libery-accent        → cta secondarie / link interni (nero pieno, ex blu)
+ *  - $libery-accent-muted  → background subtle per chip/badge (grigio chiarissimo)
+ */
+$libery-bg: #ffffff;
+$libery-yellow: #f9eeac;
+$libery-yellow-soft: #fef6c8;
+$libery-surface: #ffffff;
+$libery-ink: #1a1a1a;
+$libery-ink-soft: #6b6b6b;
+$libery-border: #e8e8e8;
+$libery-accent: #1a1a1a;
+$libery-accent-hover: #000000;
+$libery-accent-muted: #f3f3f3;
+
+// alias retro-compat (codice esistente continua a funzionare)
+$libery-blue: $libery-accent;
+$libery-blue-hover: $libery-accent-hover;
+$libery-blue-muted: $libery-accent-muted;
+$libery-btn: $libery-accent;
+$libery-btn-hover: $libery-accent-hover;
+$libery-bg-sidebar: $libery-bg;
+
+@mixin libery-button-white {
+  background-color: #fff;
+  border: 1px solid #d0d0d0;
+  color: $libery-ink;
+  font-weight: 600;
+  box-shadow: none;
+
+  &:hover,
+  &:focus,
+  &:active {
+    background-color: #f7f7f7;
+    border-color: #b8b8b8;
+    color: $libery-ink;
+  }
+
+  &:disabled,
+  &.disabled {
+    background-color: #fff;
+    border-color: #e8e8e8;
+    color: #a8a8a8;
+    opacity: 1;
+  }
+}
+
+/** Icone PNG → blu Libery */
+@mixin libery-icon-blue {
+  filter: brightness(0) saturate(100%) invert(17%) sepia(52%) saturate(2148%) hue-rotate(186deg)
+    brightness(0.82);
+}
+
+$font-family-sans-serif: 'Titillium Web', system-ui, -apple-system, sans-serif;
+
+@import 'bootstrap/scss/bootstrap';
+
+:root {
+  --libery-bg: #{$libery-bg};
+  --libery-yellow: #{$libery-yellow};
+  --libery-yellow-soft: #{$libery-yellow-soft};
+  --libery-surface: #{$libery-surface};
+  --libery-ink: #{$libery-ink};
+  --libery-accent: #{$libery-accent};
+  --libery-border: #{$libery-border};
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background-color: $libery-bg;
+  color: $libery-ink;
+  font-family: $font-family-sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+// —— App shell ——
+.app-shell {
+  background: $libery-bg;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+
+  &--home {
+    overflow: visible;
+  }
+
+  &--map {
+    .app-main {
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+    }
+  }
+}
+
+.app-header {
+  background: #ffffff;
+  border-bottom: 1px solid rgba($libery-ink, 0.08);
+  min-height: 70px;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  flex-shrink: 0;
+
+  &--minimal {
+    min-height: 52px;
+    border-bottom: none;
+  }
+}
+
+.btn-menu {
+  padding: 0;
+  border: none;
+  background: transparent;
+  line-height: 0;
+  border-radius: 0;
+
+  img {
+    display: block;
+    filter: brightness(0);
+  }
+
+  &:hover {
+    opacity: 0.75;
+  }
+}
+
+.app-header-logo {
+  text-decoration: none;
+  display: block;
+
+  &--hidden {
+    visibility: hidden;
+    pointer-events: none;
+  }
+}
+
+.header-logo {
+  width: auto !important;
+  height: 55px !important;
+  max-height: 70px !important;
+  max-width: none !important;
+  margin-left: 8px !important;
+  display: block;
+}
+
+.home-logo {
+  max-width: 50%;
+  width: auto;
+  height: auto;
+  max-height: 40px;
+  margin: 0 auto;
+  display: block;
+}
+
+.btn-entra-header {
+  @include libery-button-white;
+  font-size: 0.9rem;
+  padding: 0.35rem 0.85rem;
+  border-radius: 0.375rem;
+  flex-shrink: 0;
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid #d0d0d0;
+  background: #fff;
+  color: $libery-ink;
+  font-size: 0.68rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  overflow: hidden;
+  flex-shrink: 0;
+  line-height: 1;
+
+  &:hover {
+    background: #f7f7f7;
+    border-color: #b8b8b8;
+  }
+}
+
+.app-main {
+  background: $libery-bg;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+
+  &--map {
+    overflow: hidden;
+    flex: 1;
+  }
+}
+
+.page-content {
+  background: $libery-bg;
+}
+
+.app-main--with-fab {
+  .page-content,
+  .point-page-body {
+    padding-bottom: calc(5.75rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+// —— Home ——
+.home-page {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 0;
+  padding: 0 1.5rem 2rem;
+  padding-top: 18vh;
+  justify-content: flex-start;
+  background: $libery-bg;
+}
+
+.app-shell--home .home-page {
+  min-height: calc(100dvh - 52px);
+}
+
+.home-logo-wrap {
+  width: 49%;
+  max-width: 49%;
+  flex-shrink: 0;
+}
+
+.home-logo-large {
+  max-width: 100% !important;
+  max-height: none !important;
+  width: 100%;
+  height: auto;
+  margin: 0;
+  display: block;
+}
+
+.home-actions {
+  position: absolute;
+  top: 70%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 1.75rem;
+}
+
+.home-entra-btn {
+  @include libery-button-white;
+  font-size: 0.85rem;
+  padding: 0.45rem 1.35rem;
+  border-radius: 0.375rem;
+  line-height: 1.3;
+}
+
+// —— Sidebar ——
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 1040;
+  border: none;
+}
+
+.libery-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: min(280px, 85vw);
+  height: 100%;
+  background: $libery-bg-sidebar;
+  z-index: 1050;
+  transform: translateX(-100%);
+  transition: transform 0.25s ease;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.08);
+
+  &.open {
+    transform: translateX(0);
+  }
+}
+
+.libery-sidebar-header {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid $libery-border;
+}
+
+.libery-sidebar-nav {
+  padding: 1rem 0.75rem;
+  flex: 1;
+}
+
+.libery-nav-link {
+  display: block;
+  padding: 0.65rem 1rem;
+  border-radius: 0.375rem;
+  color: $libery-ink;
+  text-decoration: none;
+  font-weight: 400;
+  font-size: 1rem;
+
+  &:hover {
+    background: #f5f5f5;
+  }
+
+  &.active {
+    background: #f0f0f0;
+    color: $libery-ink;
+    font-weight: 700;
+  }
+}
+
+.libery-sidebar-footer {
+  padding: 1rem 1.25rem;
+  border-top: 1px solid $libery-border;
+  margin-top: auto;
+}
+
+.libery-logout {
+  @include libery-button-white;
+  padding: 0.65rem 1rem;
+  border-radius: 0.375rem;
+  width: 100%;
+  text-align: left;
+}
+
+// —— Pulsanti compatti ——
+.btn-libery,
+.btn-libery-soft,
+.btn-libery-outline,
+.btn.btn-outline-secondary {
+  @include libery-button-white;
+  font-size: 0.875rem;
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+}
+
+.btn-libery.btn-sm,
+.btn-libery-soft.btn-sm,
+.btn.btn-outline-secondary.btn-sm {
+  font-size: 0.8rem;
+  padding: 0.35rem 0.75rem;
+  border-width: 1px;
+}
+
+.btn-libery-primary {
+  @extend .btn-libery;
+}
+.btn-libery-outline {
+  @extend .btn-libery-soft;
+}
+
+// —— Auth ——
+.page-shell,
+.auth-card {
+  background: $libery-bg;
+}
+
+.auth-logo {
+  max-width: 50%;
+}
+
+.auth-card {
+  max-width: 380px;
+  margin: 0 auto;
+  padding: 1.25rem;
+  border: 1px solid $libery-border;
+  border-radius: 0.5rem;
+}
+
+.auth-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 1100;
+  border: none;
+}
+
+.auth-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1110;
+  background: #fff;
+  border-radius: 1rem 1rem 0 0;
+  padding: 0.75rem 1.25rem 1.5rem;
+  padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.12);
+  animation: auth-sheet-in 0.28s ease;
+}
+
+@keyframes auth-sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.auth-sheet-handle {
+  display: block;
+  width: 40px;
+  height: 4px;
+  background: $libery-border;
+  border-radius: 2px;
+  margin: 0 auto 0.75rem;
+}
+
+.auth-sheet-title {
+  font-weight: 700;
+  color: $libery-ink;
+}
+
+.auth-tabs {
+  display: flex;
+  gap: 0.35rem;
+  background: #f5f5f5;
+  border-radius: 0.375rem;
+  padding: 0.2rem;
+}
+
+.auth-tab {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 0.45rem;
+  border-radius: 0.25rem;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: $libery-ink-soft;
+
+  &.active {
+    background: #fff;
+    color: $libery-ink;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  }
+}
+
+// —— Mappa ——
+.map-page {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  background: $libery-bg;
+  overflow: hidden;
+}
+
+.map-wrap {
+  flex: 1 1 0;
+  min-height: 240px;
+  height: 0;
+  position: relative;
+  background: #e8ecef;
+}
+
+.map-leaflet {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  background: #e8ecef;
+
+  .leaflet-tile-pane {
+    opacity: 1;
+  }
+}
+
+.map-filter-chip {
+  border: 1px solid $libery-border;
+  background: #fff;
+  border-radius: 1rem;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: $libery-ink-soft;
+
+  &.active {
+    background: #fff;
+    border-color: $libery-blue;
+    border-width: 2px;
+    color: $libery-blue;
+  }
+}
+
+.map-search-bar {
+  position: absolute;
+  top: 0.65rem;
+  left: 0.65rem;
+  right: 0.65rem;
+  z-index: 500;
+  display: flex;
+  align-items: stretch;
+  gap: 0.5rem;
+  pointer-events: none;
+
+  > * {
+    pointer-events: auto;
+  }
+}
+
+.map-search-form {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+.map-search-input {
+  width: 100%;
+  border: 1px solid #d0d0d0;
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: $libery-ink;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+
+  &::placeholder {
+    color: $libery-ink-soft;
+    font-weight: 400;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: #b0b0b0;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  }
+}
+
+.map-locate-btn {
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid #d0d0d0;
+  background: rgba(255, 255, 255, 0.94);
+  color: $libery-blue;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  line-height: 1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+
+  &:hover:not(:disabled) {
+    background: #f5f5f5;
+    border-color: #b0b0b0;
+  }
+
+  &:disabled {
+    opacity: 0.45;
+  }
+}
+
+.map-search-status {
+  position: absolute;
+  top: 3.35rem;
+  left: 0.65rem;
+  right: 0.65rem;
+  z-index: 500;
+  margin: 0;
+  font-size: 0.78rem;
+  color: $libery-ink-soft;
+  pointer-events: none;
+}
+
+.map-book-sheet-wrap {
+  position: absolute;
+  top: 3.2rem;
+  left: 0.65rem;
+  right: 0.65rem;
+  z-index: 500;
+  max-height: calc(100% - 4rem);
+  overflow-y: auto;
+  pointer-events: none;
+
+  > * {
+    pointer-events: auto;
+  }
+}
+
+.map-other-books {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  background: rgba(255, 255, 255, 0.94);
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+}
+
+.map-other-book-btn {
+  border: none;
+  background: transparent;
+  text-align: left;
+  width: 100%;
+  padding: 0.35rem 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: $libery-blue;
+
+  &:hover {
+    color: $libery-blue-hover;
+  }
+}
+
+// —— Scheda libro (mappa / overlay) ——
+.book-sheet {
+  position: relative;
+  background: rgba(255, 255, 255, 0.97);
+  border-radius: 0.65rem;
+  padding: 0.85rem 0.9rem;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.book-sheet-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 2;
+}
+
+.book-sheet-title {
+  display: block;
+  font-size: 1rem;
+  font-weight: 700;
+  color: $libery-blue;
+  text-decoration: none;
+  line-height: 1.25;
+  padding-right: 1.5rem;
+
+  &:hover {
+    color: $libery-blue-hover;
+    text-decoration: underline;
+  }
+}
+
+.book-sheet-author {
+  font-size: 0.85rem;
+  color: $libery-ink-soft;
+  margin: 0.15rem 0 0;
+}
+
+.book-sheet-meta,
+.book-sheet-isbn {
+  font-size: 0.75rem;
+  color: $libery-ink-soft;
+  margin: 0.1rem 0 0;
+}
+
+.book-sheet-nearest {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid $libery-border;
+}
+
+.book-sheet-nearest-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: $libery-blue;
+  margin: 0 0 0.4rem;
+}
+
+.book-sheet-nearest-btn {
+  width: 100%;
+  text-align: left;
+  border: 1px solid #d0d0d0;
+  border-radius: 0.5rem;
+  background: #fafafa;
+  padding: 0.6rem 0.7rem;
+  transition: border-color 0.15s, background 0.15s;
+
+  &:hover {
+    border-color: #b0b0b0;
+    background: #f0f0f0;
+  }
+}
+
+.book-sheet-nearest-name {
+  display: block;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: $libery-ink;
+}
+
+.book-sheet-nearest-addr {
+  display: block;
+  font-size: 0.78rem;
+  color: $libery-ink-soft;
+  margin-top: 0.15rem;
+}
+
+.book-sheet-nearest-meta {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: $libery-blue;
+  margin-top: 0.25rem;
+}
+
+.book-sheet-gps-hint {
+  margin-top: 0.65rem;
+}
+
+// —— Pagina libro ——
+.book-page-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.book-page-topbar .book-page-back {
+  margin-bottom: 0; // override del margin del BackLink, lo gestisce il topbar
+}
+
+.book-page-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: $libery-ink;
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  padding: 0.15rem 0;
+
+  &:hover {
+    color: $libery-accent-hover;
+    text-decoration: none;
+  }
+}
+
+.book-page-back-icon {
+  flex-shrink: 0;
+  margin-top: 0.05rem;
+}
+
+.book-page-hero {
+  position: relative;
+  align-items: flex-start;
+  background: #ffffff;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  border: 1px solid rgba($libery-ink, 0.08);
+}
+
+// —— Welcome (landing 4 sezioni) ——
+.welcome {
+  // height del main meno header
+  height: calc(100dvh - 52px);
+  overflow-y: auto;
+  scroll-snap-type: y mandatory;
+  scroll-behavior: smooth;
+  background: $libery-bg;
+}
+
+.welcome-section {
+  position: relative;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  min-height: calc(100dvh - 52px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1.25rem 5rem;
+}
+
+.welcome-section-inner {
+  width: 100%;
+  max-width: 720px;
+  text-align: center;
+
+  &--narrow {
+    max-width: 460px;
+  }
+}
+
+.welcome-title {
+  font-size: clamp(2.5rem, 8vw, 4rem);
+  font-weight: 800;
+  margin-bottom: 0.4rem;
+  letter-spacing: -0.02em;
+}
+
+.welcome-lead {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: $libery-ink;
+  margin-bottom: 1.2rem;
+}
+
+.welcome-desc {
+  color: $libery-ink-soft;
+  max-width: 560px;
+  margin: 0 auto 1.75rem;
+  line-height: 1.55;
+}
+
+.welcome-section-title {
+  font-size: clamp(1.6rem, 5vw, 2.3rem);
+  font-weight: 800;
+  margin-bottom: 0.5rem;
+}
+
+.welcome-section-sub {
+  color: $libery-ink-soft;
+  margin-bottom: 2rem;
+}
+
+.welcome-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  justify-content: center;
+}
+
+.welcome-features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.25rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  text-align: center;
+
+  li {
+    background: #ffffff;
+    border: 1px solid rgba($libery-ink, 0.08);
+    border-radius: 0.75rem;
+    padding: 1.25rem 1rem;
+  }
+
+  h3 {
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin-bottom: 0.35rem;
+  }
+
+  p {
+    font-size: 0.88rem;
+    color: $libery-ink-soft;
+    margin: 0;
+  }
+}
+
+.welcome-feature-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #f4f4f4;
+  color: $libery-ink;
+  margin-bottom: 0.65rem;
+}
+
+.welcome-section--hero {
+  background: linear-gradient(180deg, #fffbe5 0%, #ffffff 100%);
+}
+
+.welcome-section--how {
+  background: #fafafa;
+}
+
+.welcome-section--login {
+  background: linear-gradient(180deg, #ffffff 0%, #f5f5f5 100%);
+}
+
+.welcome-section--contact {
+  background: #ffffff;
+}
+
+.welcome-login-form,
+.welcome-contact-form {
+  text-align: left;
+  background: #ffffff;
+  border: 1px solid rgba($libery-ink, 0.1);
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+}
+
+.welcome-arrow {
+  position: absolute;
+  bottom: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba($libery-ink, 0.12);
+  color: $libery-ink;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  animation: welcome-bounce 1.8s ease-in-out infinite;
+  transition: background 120ms ease;
+
+  &:hover {
+    background: #ffffff;
+  }
+
+  &--up svg {
+    transform: rotate(180deg);
+  }
+}
+
+@keyframes welcome-bounce {
+  0%, 100% { transform: translate(-50%, 0); }
+  50% { transform: translate(-50%, 5px); }
+}
+
+// —— Profilo utente ——
+.profile-page {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.profile-hero {
+  background: #ffffff;
+  border: 1px solid rgba($libery-ink, 0.08);
+  border-radius: 0.75rem;
+  padding: 0.85rem 1rem;
+}
+
+.profile-avatar {
+  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #f1efe6, #d9d5c3);
+  color: #4a4434;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-size: 1.4rem;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.profile-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 0.6rem;
+}
+
+.profile-stat {
+  background: #ffffff;
+  border: 1px solid rgba($libery-ink, 0.08);
+  border-radius: 0.5rem;
+  padding: 0.65rem 0.7rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.profile-stat-value {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: $libery-ink;
+  line-height: 1;
+}
+
+.profile-stat-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: $libery-ink-soft;
+  margin-top: 0.25rem;
+}
+
+.profile-aeroplanini {
+  background: #ffffff;
+  border: 1px solid rgba($libery-ink, 0.08);
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.85rem;
+
+  li {
+    padding: 0.4rem 0;
+    border-bottom: 1px solid rgba($libery-ink, 0.06);
+
+    &:last-child { border-bottom: 0; }
+  }
+}
+
+.user-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+// —— Toast notifications ——
+.libery-toast-container {
+  position: fixed;
+  top: calc(64px + env(safe-area-inset-top, 0px));
+  right: 1rem;
+  left: 1rem;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  pointer-events: none;
+
+  @media (min-width: 576px) {
+    left: auto;
+    max-width: 360px;
+  }
+}
+
+.libery-toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.7rem 0.85rem;
+  background: #ffffff;
+  border-radius: 0.5rem;
+  border: 1px solid rgba($libery-ink, 0.08);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.12);
+  border-left-width: 4px;
+  animation: libery-toast-in 180ms ease-out;
+
+  &--success { border-left-color: #1c8a4a; .libery-toast-icon { color: #1c8a4a; } }
+  &--error   { border-left-color: #d83a3a; .libery-toast-icon { color: #d83a3a; } }
+  &--warning { border-left-color: #d68a17; .libery-toast-icon { color: #d68a17; } }
+  &--info    { border-left-color: #2a6cb8; .libery-toast-icon { color: #2a6cb8; } }
+}
+
+.libery-toast-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.05rem;
+}
+
+.libery-toast-body {
+  flex: 1;
+  min-width: 0;
+  color: $libery-ink;
+  font-size: 0.88rem;
+  line-height: 1.3;
+}
+
+.libery-toast-title {
+  font-weight: 700;
+  margin-bottom: 0.1rem;
+}
+
+.libery-toast-message {
+  word-break: break-word;
+}
+
+.libery-toast-close {
+  flex-shrink: 0;
+  background: transparent;
+  border: 0;
+  padding: 0.15rem;
+  color: $libery-ink-soft;
+  cursor: pointer;
+  line-height: 0;
+
+  &:hover { color: $libery-ink; }
+}
+
+@keyframes libery-toast-in {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+
+// —— Stellina preferiti ——
+.favorite-star {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 0.25rem;
+  line-height: 0;
+  color: #cfcfcf;
+  cursor: pointer;
+  transition: color 120ms ease, transform 120ms ease;
+
+  &:hover { color: #f1c40f; }
+  &.is-active { color: #f1c40f; }
+  &.is-busy { opacity: 0.55; cursor: progress; }
+  &:disabled { cursor: not-allowed; }
+
+  &--corner {
+    position: absolute;
+    top: 0.4rem;
+    right: 0.4rem;
+    z-index: 2;
+  }
+
+  &--inline {
+    position: relative;
+  }
+}
+
+.book-page-desc {
+  border-top: 1px solid $libery-border;
+  padding-top: 1rem;
+}
+
+.book-page-where {
+  border-top: 1px solid $libery-border;
+  padding-top: 1rem;
+}
+
+.book-page-point-item {
+  margin-bottom: 0.5rem;
+}
+
+.book-page-point-link {
+  display: block;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #d0d0d0;
+  border-radius: 0.5rem;
+  text-decoration: none;
+  color: inherit;
+  background: #fff;
+
+  &:hover {
+    border-color: #b8b8b8;
+    background: #fafafa;
+  }
+}
+
+.book-page-point-name {
+  color: $libery-ink;
+}
+
+.book-page-point-type {
+  color: $libery-ink-soft;
+  margin-top: 0.15rem;
+}
+
+.book-page-point-dist {
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #8a8a8a;
+  white-space: nowrap;
+}
+
+.map-overlay-message {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 400;
+  background: #fff;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid $libery-border;
+  text-align: center;
+  font-size: 0.85rem;
+}
+
+.map-popup-type {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.2rem;
+  margin-bottom: 0.25rem;
+
+  &--biblioteca { background: #e8eef5; color: #4a6a8a; }
+  &--libreria { background: #e6f0e8; color: #3d6b4a; }
+  &--corner_free { background: #fceee0; color: #b35a20; }
+}
+
+.user-location-marker { background: transparent; border: none; }
+.user-location-dot {
+  display: block;
+  width: 12px;
+  height: 12px;
+  background: $libery-blue;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba($libery-blue, 0.35);
+}
+
+// —— Admin ——
+.admin-layout {
+  background: $libery-bg;
+}
+
+.admin-nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: #ffffff;
+  border-bottom: 1px solid rgba($libery-ink, 0.08);
+}
+
+// Pin mappa — dimensioni base + scala zoom/click (sull'img, non sul marker Leaflet)
+.leaflet-marker-icon.map-pin-active:not(.libery-cluster-icon) {
+  z-index: 1000 !important;
+}
+
+.leaflet-marker-icon:not(.libery-cluster-icon) img {
+  width: 36px !important;
+  height: 42px !important;
+  object-fit: contain;
+  transform: scale(var(--pin-zoom-scale, 1));
+  transform-origin: 50% 100%;
+  transition: transform 0.2s ease;
+}
+
+.leaflet-marker-icon.map-pin-active:not(.libery-cluster-icon) img {
+  transform: scale(calc(var(--pin-zoom-scale, 1) * 1.14));
+}
+
+.leaflet-control-zoom {
+  display: none !important;
+}
+
+.leaflet-marker-icon.libery-cluster-icon {
+  width: 34px !important;
+  height: 34px !important;
+  margin-left: -17px !important;
+  margin-top: -17px !important;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 0.5rem;
+  font-family: $font-family-sans-serif;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.leaflet-popup-content {
+  margin: 0.65rem 0.75rem;
+  line-height: 1.35;
+}
+
+.map-popup-inner {
+  min-width: 160px;
+}
+
+.map-popup-title {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: $libery-ink;
+  margin-bottom: 0.35rem;
+}
+
+.map-popup-address {
+  display: block;
+  font-size: 0.8rem;
+  color: $libery-ink-soft;
+  margin-bottom: 0.65rem;
+  line-height: 1.35;
+}
+
+.map-popup-link {
+  display: block;
+  width: 100%;
+  text-align: center;
+  margin-top: 0;
+  padding: 0.45rem 0.75rem;
+  @include libery-button-white;
+  text-decoration: none;
+  border-radius: 0.375rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  box-sizing: border-box;
+}
+
+// Cluster default leaflet (fallback) — i nostri usano .libery-cluster-*
+.marker-cluster-small,
+.marker-cluster-medium,
+.marker-cluster-large {
+  background: rgba(74, 106, 138, 0.25);
+}
+
+.marker-cluster-small div,
+.marker-cluster-medium div,
+.marker-cluster-large div {
+  background: rgba(74, 106, 138, 0.92);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+// —— Scheda punto ——
+.point-page {
+  padding: 0 !important;
+}
+
+.point-hero {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  max-height: 220px;
+  background: #e8ecef;
+  overflow: hidden;
+}
+
+.point-page-back {
+  position: absolute;
+  top: 0.55rem;
+  left: 0.7rem;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.65rem 0.3rem 0.5rem;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 999px;
+  color: $libery-ink;
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-decoration: none;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  margin-bottom: 0;
+
+  &:hover {
+    color: $libery-accent-hover;
+    background: #ffffff;
+  }
+}
+
+.point-hero-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.point-hero-placeholder {
+  width: 100%;
+  height: 100%;
+  min-height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, #e2e8f0, #cbd5e1);
+}
+
+.point-hero-placeholder-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.55);
+
+  img {
+    display: block;
+    object-fit: contain;
+  }
+}
+
+.point-book-row {
+  align-items: flex-start;
+}
+
+// ============================================================
+// BookCard unificata: usata in PointPage, BackpackPage, ricerca.
+// `.point-book-item / .point-book-link / .point-book-title /
+//  .point-book-cover-wrap / .point-book-copies-badge` restano
+// come alias retro-compatibili che ereditano gli stessi stili.
+// ============================================================
+.book-card,
+.point-book-item {
+  position: relative;
+  border: 1px solid rgba($libery-ink, 0.1);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  background: $libery-surface;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  list-style: none;
+
+  &:hover {
+    border-color: #d0d0d0;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  }
+}
+
+.book-card-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+// `.book-card-link` resta come alias per non rompere ricerche esterne.
+.book-card-link,
+.book-card-titles,
+.point-book-link {
+  text-decoration: none;
+  color: inherit;
+  min-width: 0;
+
+  &:hover {
+    color: inherit;
+  }
+}
+
+.book-card-titles {
+  display: block;
+}
+
+// Utility: clampa il testo a 2 righe con ellipsis
+.book-title-clamp-2,
+.book-card-title,
+.point-book-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
+}
+
+.book-card-title,
+.point-book-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  line-height: 1.25;
+  color: $libery-ink;
+}
+
+.book-card-author {
+  display: block;
+  font-size: 0.8rem;
+  color: $libery-ink-soft;
+  line-height: 1.25;
+  margin-top: 0.05rem;
+}
+
+.book-card-subtitle {
+  display: block;
+  font-size: 0.78rem;
+  color: $libery-ink-soft;
+  line-height: 1.3;
+  margin-top: 0.2rem;
+}
+
+.book-card-body {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.book-card-cover-wrap,
+.point-book-cover-wrap {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  width: 52px;
+}
+
+// Badge sotto la cover: chip neutra (stesso stile di .map-popup-type)
+.book-card-cover-badge,
+.point-book-copies-badge {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  line-height: 1;
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.2rem;
+  background: #f0f0f0;
+  color: $libery-ink;
+  text-align: center;
+  white-space: nowrap;
+}
+
+// === SearchBooksPage: "puoi trovarlo qui:" === ===
+// Layout (dentro al subtitle di una BookCard):
+//   puoi trovarlo qui:          ← label staccata di più, poco più grande
+//   Nome punto (link)           ← una sola riga, font maggiore, ellipsis
+//   [chip tipo · distanza]      ← badge sotto al nome
+//   Via XX, Città               ← indirizzo, sotto, soft
+.search-book-where {
+  color: $libery-ink;
+  display: flex;
+  flex-direction: column;
+  margin-top: 0.85rem;
+  line-height: 1.3;
+}
+
+.search-book-where-label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: $libery-ink-soft;
+  text-transform: lowercase;
+  letter-spacing: 0.01em;
+  margin-bottom: 0.25rem;
+}
+
+.search-book-where-name {
+  display: block;
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: $libery-ink;
+  text-decoration: none;
+  line-height: 1.2;
+  // 1 riga sola con ellipsis
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  &:hover {
+    color: $libery-ink;
+    text-decoration: underline;
+  }
+}
+
+.search-book-where-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.3rem;
+  align-self: flex-start;
+}
+
+.search-book-where-address {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.82rem;
+  color: $libery-ink-soft;
+  // 1 riga sola, ellipsis se troppo lungo
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.book-card-actions,
+.point-book-actions {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  align-self: flex-start;
+  gap: 0.35rem;
+}
+
+.point-book-action-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  align-items: stretch;
+}
+
+.book-card-actions .btn,
+.point-book-take-btn {
+  font-size: 0.8rem;
+  padding: 0.3rem 0.65rem;
+  white-space: nowrap;
+}
+
+// === Variante PRENOTATO ===
+// Stesso layout/sfondo (bianco) delle altre card. Sotto il titolo
+// compare un badge verde acqua, il countdown e il punto dove è riservato.
+$libery-teal: #20c997; // verde acqua (Bootstrap teal)
+$libery-teal-soft: #d6f5ec;
+$libery-leave: #d33a2c; // rosso per il pulsante "Lascia"
+
+.book-card-reserved-meta {
+  display: flex;
+  flex-direction: column;
+  margin-top: 0.35rem;
+}
+
+.book-card-reserved-badge {
+  align-self: flex-start;
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1;
+  padding: 0.22rem 0.5rem;
+  border-radius: 0.25rem;
+  background: $libery-teal;
+  color: #fff;
+}
+
+.book-card-reserved-countdown {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: $libery-ink-soft;
+  font-variant-numeric: tabular-nums;
+}
+
+.book-card-reserved-where {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.82rem;
+  line-height: 1.3;
+  color: $libery-ink;
+
+  strong {
+    font-weight: 700;
+  }
+}
+
+.book-card-reserved-pointlink {
+  color: $libery-ink;
+  font-weight: 700;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+    color: $libery-ink;
+  }
+}
+
+.book-card-reserved-address {
+  display: block;
+  font-weight: 400;
+  color: $libery-ink-soft;
+}
+
+// Pulsante "Lascia" (annulla prenotazione): rosso, bordo spesso.
+.btn-libery-leave {
+  background: transparent;
+  color: $libery-leave;
+  border: 2px solid $libery-leave;
+  font-weight: 700;
+  font-size: 0.8rem;
+  padding: 0.28rem 0.7rem;
+  border-radius: 0.4rem;
+  line-height: 1.2;
+
+  &:hover,
+  &:focus {
+    background: rgba($libery-leave, 0.08);
+    color: darken($libery-leave, 8%);
+    border-color: darken($libery-leave, 8%);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+.take-book-scanner {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: $libery-bg;
+}
+
+.point-take-toast {
+  font-size: 0.85rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 0.35rem;
+  background: #ecfdf3;
+  color: #027a48;
+  margin-bottom: 0.75rem;
+}
+
+.book-cover-thumb {
+  flex-shrink: 0;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+
+  &--placeholder {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(145deg, #f1efe6, #d9d5c3);
+    color: #6b6451;
+    line-height: 1;
+    overflow: hidden;
+  }
+
+  &__icon {
+    opacity: 0.55;
+  }
+
+  &__initial {
+    position: absolute;
+    bottom: 14%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: clamp(0.55rem, 22%, 1rem);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: #4a4434;
+    background: rgba(255, 255, 255, 0.72);
+    padding: 0 0.35em;
+    border-radius: 999px;
+    line-height: 1.3;
+  }
+}
+
+// —— Anteprima libro (flusso camera) ——
+.camera-book-preview {
+  position: relative;
+  background: $libery-surface;
+  border: 1px solid rgba($libery-ink, 0.08);
+  border-radius: 0.65rem;
+  padding: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.camera-book-preview-main {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  text-decoration: none;
+  color: inherit;
+
+  &:hover {
+    color: inherit;
+  }
+}
+
+.camera-book-preview-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1.25;
+  margin: 0 0 0.35rem;
+  color: $libery-ink;
+}
+
+.camera-book-preview-author {
+  font-size: 0.9rem;
+  color: $libery-ink-soft;
+  margin: 0 0 0.25rem;
+}
+
+.camera-book-preview-meta {
+  font-size: 0.8rem;
+  color: $libery-ink-soft;
+  margin: 0 0 0.35rem;
+}
+
+.camera-book-preview-source {
+  display: inline-block;
+  font-size: 0.72rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 0.25rem;
+  background: $libery-blue-muted;
+  color: $libery-blue;
+  margin-bottom: 0.35rem;
+}
+
+.camera-book-preview-cta {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: $libery-blue;
+}
+
+.camera-book-preview-desc {
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid #eee;
+}
+
+.camera-book-preview-desc-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: $libery-ink-soft;
+  margin: 0 0 0.35rem;
+}
+
+.camera-book-preview-desc-body {
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: $libery-ink;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.camera-book-preview-point {
+  margin-top: 0.75rem;
+  color: $libery-ink-soft;
+}
+
+// —— Camera FAB & flow ——
+.camera-fab {
+  position: fixed;
+  bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
+  right: 1.25rem;
+  left: auto;
+  z-index: 900;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  border: 1px solid #d0d0d0;
+  background: #fff;
+  color: $libery-ink;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+
+  &:hover {
+    background: #f7f7f7;
+    border-color: #b8b8b8;
+    box-shadow: 0 6px 18px rgba(26, 77, 140, 0.28), 0 2px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  &:active {
+    transform: scale(0.94);
+  }
+}
+
+.camera-fab-icon {
+  display: block;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  object-fit: contain;
+}
+
+// Icone cluster personalizzate (colore = tipo dominante)
+.leaflet-marker-icon.libery-cluster-icon {
+  background: transparent !important;
+  border: none !important;
+  overflow: visible !important;
+}
+
+.libery-cluster-marker {
+  width: 34px;
+  height: 34px;
+  background: #4a6a8a;
+  box-shadow: 0 0 0 3px rgba(74, 106, 138, 0.35), 0 4px 12px rgba(0, 0, 0, 0.2);
+  font-size: 0.85rem;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #fff;
+  font-weight: 700;
+  line-height: 1;
+  border: 2px solid #fff;
+  margin: 0;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: none;
+}
+
+.libery-cluster-marker--libreria {
+  background: #3d6b4a;
+  box-shadow: 0 0 0 3px rgba(61, 107, 74, 0.35), 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.libery-cluster-marker--corner_free {
+  background: #b35a20;
+  box-shadow: 0 0 0 3px rgba(179, 90, 32, 0.35), 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.leaflet-marker-pane .libery-cluster-icon {
+  z-index: 650 !important;
+}
+
+.camera-flow {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+}
+
+.camera-flow--app {
+  background: $libery-bg;
+  color: $libery-ink;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+
+  .scanner-frame {
+    border-color: rgba(252, 238, 139, 0.9);
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.35);
+  }
+}
+
+.camera-flow-app-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1rem;
+  background: #fff;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  z-index: 10;
+}
+
+.camera-flow-app-title {
+  font-weight: 700;
+  flex: 1;
+}
+
+.camera-flow-rescan {
+  margin-left: auto;
+  text-decoration: none;
+  padding: 0;
+}
+
+.camera-flow-steps {
+  display: flex;
+  gap: 0.35rem;
+  padding: 0.5rem 1rem 0.65rem;
+  background: #fff;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.camera-flow-step {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: $libery-ink-soft;
+  padding: 0.35rem 0.25rem;
+  border-radius: 0.35rem;
+  background: #f5f5f5;
+
+  &.active {
+    background: $libery-blue-muted;
+    color: $libery-blue;
+  }
+
+  &.done {
+    color: $libery-blue;
+    background: #fff;
+    border: 1px solid rgba($libery-blue, 0.25);
+  }
+}
+
+.camera-flow-step-num {
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  background: rgba(0, 0, 0, 0.06);
+
+  .active & {
+    background: $libery-blue;
+    color: #fff;
+  }
+}
+
+.camera-flow-scanner-wrap {
+  position: relative;
+  flex: 0 0 28vh;
+  max-height: 200px;
+  min-height: 140px;
+  background: #1a1a1a;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex-shrink: 0;
+
+  .scanner-viewport {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+  }
+
+  &--isbn {
+    flex: 0 0 min(52vw, 280px);
+    max-height: min(52vw, 280px);
+    min-height: min(52vw, 240px);
+    aspect-ratio: 1;
+    align-self: center;
+    width: min(92vw, 300px);
+    margin: 0.5rem auto 0;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #111;
+  }
+}
+
+.camera-flow-hint {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.75));
+  color: #fff;
+  font-size: 0.85rem;
+  text-align: center;
+  z-index: 2;
+}
+
+.camera-flow-manual-isbn {
+  margin-bottom: 1rem;
+}
+
+.camera-flow-manual-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: $libery-ink-soft;
+  margin-bottom: 0.35rem;
+}
+
+.camera-flow-manual-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.camera-flow-manual-input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid $libery-border;
+  border-radius: 0.5rem;
+  padding: 0.55rem 0.65rem;
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.camera-flow-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem 1rem 1.5rem;
+  min-height: 0;
+}
+
+.camera-flow-status {
+  font-size: 0.85rem;
+  color: $libery-ink-soft;
+  margin-bottom: 0.5rem;
+}
+
+.camera-flow-error {
+  font-size: 0.85rem;
+  color: #b42318;
+  background: #fef3f2;
+  border-radius: 0.35rem;
+  padding: 0.5rem 0.65rem;
+  margin-bottom: 0.75rem;
+}
+
+.camera-flow-section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 0.35rem;
+  color: $libery-ink;
+}
+
+.camera-flow-section-lead {
+  font-size: 0.85rem;
+  color: $libery-ink-soft;
+  margin-bottom: 1rem;
+}
+
+.camera-flow-card-title {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 0 0 0.15rem;
+  color: $libery-blue;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.camera-flow-card--compact {
+  margin-bottom: 0.85rem;
+}
+
+.camera-flow-book-hero {
+  margin-bottom: 1rem;
+}
+
+.camera-flow-book-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.25;
+  margin: 0 0 0.25rem;
+  color: $libery-ink;
+}
+
+.camera-flow-book-author {
+  font-size: 0.9rem;
+  color: $libery-ink;
+  margin: 0;
+
+  &--muted {
+    color: $libery-ink-soft;
+    font-style: italic;
+  }
+}
+
+.camera-flow-book-source {
+  font-size: 0.72rem;
+  color: $libery-blue;
+  font-weight: 600;
+}
+
+.camera-flow-book-link {
+  color: $libery-blue;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.camera-flow-point-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.camera-flow-point-btn {
+  width: 100%;
+  text-align: left;
+  border: 1px solid #d0d0d0;
+  border-radius: 0.5rem;
+  background: #fff;
+  padding: 0.65rem 0.75rem;
+  transition: border-color 0.15s, background 0.15s;
+
+  &:hover:not(:disabled) {
+    border-color: #b8b8b8;
+    background: #fafafa;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+  }
+}
+
+.camera-flow-point-name {
+  display: block;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: $libery-ink;
+}
+
+.camera-flow-point-meta {
+  display: block;
+  font-size: 0.78rem;
+  color: $libery-ink-soft;
+  margin-top: 0.15rem;
+}
+
+.camera-flow-point-dist,
+.camera-flow-point-type {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: $libery-blue;
+  margin-top: 0.2rem;
+}
+
+.camera-flow-availability {
+  font-size: 0.85rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 0.35rem;
+  margin-bottom: 0.75rem;
+
+  &.is-ok {
+    background: #ecfdf3;
+    color: #027a48;
+  }
+
+  &.is-warn {
+    background: #fffaeb;
+    color: #b54708;
+  }
+}
+
+.btn-libery.active-pick {
+  background: $libery-blue-muted;
+  border-color: $libery-blue-hover;
+}
+
+.camera-flow-card {
+  background: $libery-surface;
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba($libery-ink, 0.08);
+  margin-bottom: 0.75rem;
+}
+
+.camera-flow-confirm-near {
+  text-align: center;
+  padding: 0.5rem 0 1rem;
+
+  .camera-flow-section-title {
+    margin-bottom: 0.5rem;
+  }
+}
+
+.camera-flow-book-desc {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.camera-flow-actions {
+  padding-top: 0.25rem;
+}
+
+.camera-flow-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 10;
+}
+
+.scanner-viewport {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.scanner-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.scanner-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.scanner-isbn-zone {
+  position: relative;
+  width: min(78vw, 240px);
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.scanner-isbn-bars {
+  width: 72%;
+  height: 38%;
+  border-radius: 2px;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.55) 0,
+    rgba(0, 0, 0, 0.55) 2px,
+    transparent 2px,
+    transparent 5px
+  );
+}
+
+.scanner-viewport--isbn .scanner-overlay,
+.scanner-viewport--qr .scanner-overlay {
+  align-items: center;
+  justify-content: center;
+}
+
+.scanner-qr-zone {
+  position: relative;
+  width: min(78vw, 240px);
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.scanner-qr-fake {
+  width: 56%;
+  aspect-ratio: 1;
+  opacity: 0.46;
+  background: center / contain no-repeat
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 29 29'%3E%3Crect width='29' height='29' fill='%23fff' fill-opacity='0'/%3E%3Cpath fill='%23000' fill-opacity='.55' d='M1 1h7v7H1zm2 2v3h3V3zm18-2h7v7h-7zm2 2v3h3V3zM1 21h7v7H1zm2 2v3h3v-3zm10-12h1v1h-1zm2 0h1v1h-1zm2 0h1v1h-1zm-4 2h1v1h-1zm4 0h1v1h-1zm2 0h1v1h-1zm-6 2h1v1h-1zm2 0h3v1h-3zm4 0h1v1h-1zm-8 2h1v1h-1zm6 0h1v1h-1zm-4 2h3v1h-3zm6 0h1v1h-1zm-8 2h1v1h-1zm2 0h1v1h-1zm4 0h1v1h-1zm-6 2h1v1h-1zm8 0h1v1h-1zm-10 2h1v1h-1zm4 0h1v1h-1zm6 0h1v1h-1zM21 21h7v7h-7zm2 2v3h3v-3z'/%3E%3C/svg%3E");
+}
+
+.scanner-frame {
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  border-radius: 4px;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
+
+  &--auto {
+    width: 220px;
+    height: 220px;
+    border-radius: 12px;
+  }
+}
+
+.camera-flow-panel {
+  background: rgba(20, 20, 20, 0.92);
+  color: #fff;
+  padding: 1rem 1.25rem 1.5rem;
+  max-height: 45vh;
+  overflow-y: auto;
+}
+
+.camera-point-list li {
+  margin-bottom: 0.5rem;
+}

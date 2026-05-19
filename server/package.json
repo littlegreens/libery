@@ -1,0 +1,46 @@
+{
+  "name": "@libery/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "dev:worker": "tsx watch src/worker.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "start:worker": "node dist/worker.js",
+    "db:migrate": "prisma migrate dev",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio",
+    "db:generate": "prisma generate",
+    "seed:admin": "tsx src/scripts/seed-admin.ts",
+    "seed:users": "tsx src/scripts/seed-users.ts",
+    "seed:demo-points": "tsx src/scripts/seed-demo-points.ts",
+    "seed:test-data": "tsx src/scripts/seed-test-data.ts",
+    "seed:italia": "tsx src/scripts/seed-italia.ts",
+    "enrich:covers": "tsx src/scripts/enrich-book-covers.ts",
+    "clear:books": "tsx src/scripts/clear-books.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.8.2",
+    "bcryptjs": "^3.0.2",
+    "bullmq": "^5.76.10",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0",
+    "ioredis": "^5.10.1",
+    "jsonwebtoken": "^9.0.2",
+    "zod": "^3.25.28"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.18",
+    "@types/express": "^5.0.2",
+    "@types/jsonwebtoken": "^9.0.9",
+    "@types/node": "^22.15.21",
+    "prisma": "^6.8.2",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  }
+}

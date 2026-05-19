@@ -1,0 +1,31 @@
+{
+  "name": "libery",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Libery — PWA bookcrossing geolocalizzato",
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "concurrently -n client,server -c cyan,magenta \"npm run dev -w client\" \"npm run dev -w server\"",
+    "dev:client": "npm run dev -w client",
+    "dev:server": "npm run dev -w server",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "db:migrate": "npm run db:migrate -w server",
+    "db:studio": "npm run db:studio -w server",
+    "seed:admin": "npm run seed:admin -w server",
+    "seed:users": "npm run seed:users -w server",
+    "seed:demo-points": "npm run seed:demo-points -w server",
+    "seed:test-data": "npm run seed:test-data -w server",
+    "seed:all": "npm run seed:users && npm run seed:demo-points && npm run seed:test-data",
+    "enrich:covers": "npm run enrich:covers -w server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
