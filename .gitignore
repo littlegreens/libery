@@ -10,3 +10,9 @@ coverage/
 server/prisma/migrations/**/migration_lock.toml
 uploads/
 .covers/
+
+# File temporanei lasciati da script/test
+*.bak
+server/tmp-*
+server/.tmp/
+.tmp/
