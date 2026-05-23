@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import AuthForm from '@/components/AuthForm';
 import BrandLogo from '@/components/BrandLogo';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 export default function AuthPage() {
   const navigate = useNavigate();
@@ -10,6 +11,7 @@ export default function AuthPage() {
     location.pathname === '/registrati' || searchParams.get('mode') === 'register'
       ? 'register'
       : 'login';
+  useDocumentTitle(initialMode === 'register' ? 'Registrati' : 'Accedi');
 
   return (
     <div className="auth-page min-vh-100 d-flex flex-column bg-white">

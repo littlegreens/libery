@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { LiberyButton, MdTextField } from '@/lib/material/md-react';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 export default function VerifyEmailPage() {
   const [searchParams] = useSearchParams();
@@ -11,20 +12,25 @@ export default function VerifyEmailPage() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'ok' | 'error'>('idle');
   const [message, setMessage] = useState('');
 
+  useDocumentTitle('Verifica email');
+
   useEffect(() => {
     if (!tokenFromUrl) return;
+    const controller = new AbortController();
     setStatus('loading');
     api
-      .post('/auth/verify-email', { token: tokenFromUrl })
+      .post('/auth/verify-email', { token: tokenFromUrl }, { signal: controller.signal })
       .then(() => {
         setStatus('ok');
-        setMessage('Email verificata. Ora puoi accedere.');
+        setMessage('Email verificata.');
       })
       .catch((err) => {
+        if (err?.code === 'ERR_CANCELED') return;
         setStatus('error');
         const data = (err as { response?: { data?: { error?: string } } })?.response?.data;
         setMessage(data?.error ?? 'Verifica non riuscita');
       });
+    return () => controller.abort();
   }, [tokenFromUrl]);
 
   async function handleVerify(e: FormEvent) {
@@ -64,7 +70,8 @@ export default function VerifyEmailPage() {
           className={`libery-inline-alert mb-3 small ${
             status === 'ok' ? 'libery-inline-alert-success' : 'libery-inline-alert-danger'
           }`}
-          role="status"
+          role={status === 'error' ? 'alert' : 'status'}
+          aria-live={status === 'error' ? 'assertive' : 'polite'}
         >
           {message}
         </div>

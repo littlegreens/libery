@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { MdCard } from '@/lib/material/md-react';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 type Stats = {
   users: number;
@@ -10,6 +11,7 @@ type Stats = {
 };
 
 export default function AdminDashboard() {
+  useDocumentTitle('Admin');
   const [stats, setStats] = useState<Stats | null>(null);
 
   useEffect(() => {

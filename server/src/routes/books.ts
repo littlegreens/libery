@@ -192,8 +192,9 @@ router.get('/isbn/:isbn', async (req, res, next) => {
 router.get('/:id', optionalAuthenticate, async (req: AuthRequest, res, next) => {
   try {
     const userId = req.user?.sub;
+    const bookId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const book = await prisma.book.findUnique({
-      where: { id: req.params.id },
+      where: { id: bookId },
       include: {
         pointBooks: {
           where: {

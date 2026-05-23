@@ -8,6 +8,10 @@ import type { PointStatus, PointType } from '@prisma/client';
 
 const router = Router();
 
+function routeParamId(value: string | string[]): string {
+  return Array.isArray(value) ? value[0]! : value;
+}
+
 const listQuerySchema = z.object({
   q: z.string().optional(),
   type: z.enum(['biblioteca', 'libreria', 'corner_free']).optional(),
@@ -106,7 +110,7 @@ router.get('/:id/availability/:isbn', async (req, res, next) => {
     }
 
     const point = await prisma.point.findUnique({
-      where: { id: req.params.id },
+      where: { id: routeParamId(req.params.id) },
       select: { id: true, name: true, status: true },
     });
     if (!point || point.status !== 'approved') {
@@ -169,7 +173,7 @@ const bookSelect = {
 router.get('/:id/books', optionalAuthenticate, async (req: AuthRequest, res, next) => {
   try {
     const point = await prisma.point.findUnique({
-      where: { id: req.params.id },
+      where: { id: routeParamId(req.params.id) },
       select: { id: true, name: true, status: true },
     });
     if (!point || point.status !== 'approved') {
@@ -282,7 +286,7 @@ router.get('/:id/books', optionalAuthenticate, async (req: AuthRequest, res, nex
 router.get('/:id', async (req, res, next) => {
   try {
     const point = await prisma.point.findUnique({
-      where: { id: req.params.id },
+      where: { id: routeParamId(req.params.id) },
       include: {
         manager: { select: { id: true, displayName: true, email: true } },
       },

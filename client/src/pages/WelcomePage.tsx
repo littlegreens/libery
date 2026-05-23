@@ -4,6 +4,7 @@ import { LiberyButton, MdTextField } from '@/lib/material/md-react';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
 import type { ShellOutletContext } from '@/components/AppShell';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 const HOME_LOGO_SRC = '/libery_logo_white.png';
 
@@ -26,6 +27,7 @@ const WELCOME_STEPS = [
 ] as const;
 
 export default function WelcomePage() {
+  useDocumentTitle('Home');
   const navigate = useNavigate();
   const { openAuthSheet } = useOutletContext<ShellOutletContext>();
   const loggedIn = useAuthStore((s) => s.isLoggedIn());

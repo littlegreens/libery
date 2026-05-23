@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import axios from 'axios';
 import { api } from '@/lib/api';
+import { getApiError } from '@/lib/apiError';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import BookListRow from '@/components/BookListRow';
 import LiberyLoading from '@/components/LiberyLoading';
 import UserPickupQrSheet from '@/components/UserPickupQrSheet';
@@ -67,6 +68,7 @@ function pointSubtitle(point: PointLite, date: string, prefix: string) {
 }
 
 export default function BackpackPage() {
+  useDocumentTitle('Zaino');
   const { setPageBar } = useOutletContext<ShellOutletContext>();
   const loggedIn = useAuthStore((s) => s.isLoggedIn());
   const [tab, setTab] = useState<BackpackTab>('taken');
@@ -95,10 +97,11 @@ export default function BackpackPage() {
         setDonated(r.data.donated);
         setReserved(r.data.reserved ?? []);
       })
-      .catch(() => {
+      .catch((err) => {
         setTaken([]);
         setDonated([]);
         setReserved([]);
+        toast.error(getApiError(err, 'Zaino non disponibile'));
       })
       .finally(() => setLoading(false));
   }, [loggedIn]);
@@ -130,10 +133,7 @@ export default function BackpackPage() {
       await reload();
       void useSlotsStore.getState().refreshSlots();
     } catch (err) {
-      const msg = axios.isAxiosError(err)
-        ? (err.response?.data as { error?: string })?.error ?? 'Operazione non riuscita'
-        : 'Errore di rete';
-      toast.error(msg);
+      toast.error(getApiError(err, 'Annullamento non riuscito'));
     } finally {
       setCancelBusyId(null);
     }

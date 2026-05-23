@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
-import axios from 'axios';
 import { Link, useOutletContext } from 'react-router-dom';
 import { api } from '@/lib/api';
+import { getApiError } from '@/lib/apiError';
 import type { ShellOutletContext } from '@/components/AppShell';
 import LiberyNumChip from '@/components/LiberyNumChip';
 import { LiberyButton, MdTextField } from '@/lib/material/md-react';
@@ -9,6 +9,7 @@ import { useAuthStore, type AuthUser } from '@/stores/authStore';
 import { useSlotsStore } from '@/stores/slotsStore';
 import { toast } from '@/stores/toastStore';
 import { useMdNativeFormBridge } from '@/lib/useMdNativeFormBridge';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 type ProfileResponse = {
   user: AuthUser & {
@@ -54,6 +55,7 @@ function profileInitials(user: AuthUser | null, fallbackName: string): string {
 }
 
 export default function ProfilePage() {
+  useDocumentTitle('Profilo');
   const loggedIn = useAuthStore((s) => s.isLoggedIn());
   const authUser = useAuthStore((s) => s.user);
   const setAuth = useAuthStore((s) => s.setAuth);
@@ -215,10 +217,7 @@ export default function ProfilePage() {
       setConfirmPassword('');
       toast.success('Profilo salvato');
     } catch (err) {
-      const msg = axios.isAxiosError(err)
-        ? (err.response?.data as { error?: string })?.error ?? 'Salvataggio fallito'
-        : 'Errore di rete';
-      toast.error(msg);
+      toast.error(getApiError(err, 'Salvataggio non riuscito'));
     } finally {
       setSaving(false);
     }

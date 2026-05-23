@@ -60,7 +60,7 @@ export default function UserPickupQrSheet({ open, onOpenChange, book, pointName,
           </div>
         </div>
         {qrSrc ? (
-          <img className="user-qr-sheet__qr" src={qrSrc} alt="" width={240} height={240} />
+          <img className="user-qr-sheet__qr" src={qrSrc} alt={`QR ritiro — ${book.title}`} width={240} height={240} />
         ) : null}
         <p className="user-qr-sheet__lead">
           Mostra questo QR code al punto Libery

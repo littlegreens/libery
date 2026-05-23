@@ -1,0 +1,17 @@
+# Libery — solo dominio libery.foundly.it (API 3012 + route SPA)
+
+location ^~ /api/ {
+    proxy_pass http://127.0.0.1:3012;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    client_max_body_size 10M;
+}
+
+# React Router: refresh senza 404 (Hestia proxy Apache non conosce queste path)
+location ~* ^/(home|mappa|libri|cerca|zaino|profilo|gestore|diventa-punto|entra|registrati|verifica-email|punto/|libro/|admin)(/|$) {
+    root /home/gabverdini/web/libery.foundly.it/public_html;
+    try_files /index.html =404;
+}

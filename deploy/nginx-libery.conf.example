@@ -1,12 +1,16 @@
 # Esempio snippet Nginx per libery.foundly.it (Hestia)
-# Adatta USER e percorsi. Inserisci nel template SSL del dominio.
+# Solo per QUESTO dominio — non modificare nginx.conf globale.
+# Adatta USER, percorsi e LIBERY_PORT (deve coincidere con server/.env PORT).
+
+# set $libery_port 3001;
 
 root /home/USER/libery/client/dist;
 index index.html;
 
 # Upload / API — proxy verso Node
 location /api/ {
-    proxy_pass http://127.0.0.1:3001;
+    # Libery: 3012 (NON 3000/3001 — altri siti Foundly)
+    proxy_pass http://127.0.0.1:3012;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;

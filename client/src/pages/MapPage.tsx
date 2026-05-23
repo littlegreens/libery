@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
 import MapClusterLayer from '@/components/MapClusterLayer';
 import MapLocateBar from '@/components/MapLocateBar';
@@ -59,6 +60,7 @@ function FitBounds({ points }: { points: MapPoint[] }) {
 }
 
 export default function MapPage() {
+  useDocumentTitle('Mappa');
   const location = useLocation();
   const mapWrapRef = useRef<HTMLDivElement>(null);
   const [mapReady, setMapReady] = useState(false);
@@ -77,7 +79,7 @@ export default function MapPage() {
       });
       setPoints(data.points);
     } catch {
-      setError('Server non raggiungibile — avvia API su :3001');
+      setError('Punti non disponibili al momento');
     } finally {
       setLoading(false);
     }
@@ -140,8 +142,8 @@ export default function MapPage() {
         )}
 
         {error && (
-          <div className="map-overlay-message map-overlay-message--error">
-            <MdIcon className="map-overlay-message__icon">cloud_off</MdIcon>
+          <div className="map-overlay-message map-overlay-message--error" role="alert">
+            <MdIcon className="map-overlay-message__icon" aria-hidden>cloud_off</MdIcon>
             <p className="mb-2">{error}</p>
             <LiberyButton type="button" color="outlined" size="small" onClick={loadPoints}>
               Riprova

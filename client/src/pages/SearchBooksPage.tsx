@@ -1,7 +1,8 @@
 import { FormEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useOutletContext } from 'react-router-dom';
-import axios from 'axios';
 import { api } from '@/lib/api';
+import { getApiError } from '@/lib/apiError';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import BookSearchBottomSheet from '@/components/BookSearchBottomSheet';
 import BookListRow from '@/components/BookListRow';
 import LiberyOutlinedSearchField from '@/components/LiberyOutlinedSearchField';
@@ -18,6 +19,7 @@ import {
   type SearchIsbnLookup,
 } from '@/stores/searchBooksStore';
 import { useMdNativeFormBridge } from '@/lib/useMdNativeFormBridge';
+import { usePageScrollRestore } from '@/hooks/usePageScrollRestore';
 
 function looksLikeIsbn(q: string): boolean {
   return parseIsbn(q) !== null;
@@ -37,6 +39,7 @@ export default function SearchBooksPage() {
   const [picked, setPicked] = useState<SearchBookResult | null>(null);
   const { pos: userPos } = useUserPosition();
   const searchBackState = useMemo(() => searchBooksBackState(pathname), [pathname]);
+  usePageScrollRestore(isSearchBooksPath(pathname) ? pathname : null);
   const saveSearchSnapshot = useSearchBooksStore((s) => s.save);
   const searchRestoredRef = useRef(false);
   const searchInputRef = useRef({ q, books, isbnResult, searched, picked, error });
@@ -93,6 +96,8 @@ export default function SearchBooksPage() {
   const searchFormRef = useRef<HTMLFormElement>(null);
   useMdNativeFormBridge(searchFormRef);
 
+  useDocumentTitle('Libri');
+
   useEffect(() => {
     setPageBar({
       title: 'Libri',
@@ -127,11 +132,9 @@ export default function SearchBooksPage() {
         created: data.created,
       });
     } catch (err) {
-      if (axios.isAxiosError(err) && err.response?.status === 404) {
-        setError('Libro non trovato. Controlla l\'ISBN o riprova più tardi.');
-      } else {
-        setError('Ricerca ISBN non disponibile — verifica che il server sia avviato');
-      }
+      setError(
+        getApiError(err, 'Libro non trovato'),
+      );
     } finally {
       setLoading(false);
     }
@@ -155,10 +158,7 @@ export default function SearchBooksPage() {
         created: data.created,
       });
     } catch (err) {
-      const msg = axios.isAxiosError(err)
-        ? (err.response?.data as { error?: string })?.error ?? 'Import non riuscito'
-        : 'Errore di rete';
-      setError(msg);
+      setError(getApiError(err, 'Import non riuscito'));
     } finally {
       setImporting(false);
     }
@@ -185,11 +185,7 @@ export default function SearchBooksPage() {
       setBooks(data.books);
     } catch (err) {
       setBooks([]);
-      setError(
-        axios.isAxiosError(err) && err.response?.status === 400
-          ? 'Inserisci almeno un carattere'
-          : 'Ricerca non disponibile — verifica che il server sia avviato',
-      );
+      setError(getApiError(err, 'Ricerca non disponibile'));
     } finally {
       setLoading(false);
     }
@@ -237,7 +233,7 @@ export default function SearchBooksPage() {
 
       <div className="libery-search-page-body px-3 pb-3">
 
-      {error && <p className="text-danger small">{error}</p>}
+      {error && <p className="text-danger small" role="alert" aria-live="assertive">{error}</p>}
 
       {isbnResult && (
         <div className="libery-book-list mb-3">

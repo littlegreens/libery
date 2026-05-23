@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import BookSheetHero from '@/components/BookSheetHero';
 import LiberyLoading from '@/components/LiberyLoading';
 import BookDescriptionBody from '@/components/BookDescriptionBody';
@@ -62,11 +63,15 @@ export default function BookPage() {
   const [error, setError] = useState('');
   const { pos: userPos } = useUserPosition();
 
+  useDocumentTitle(book?.title ?? (loading ? null : 'Libro'));
+
   useEffect(() => {
     if (!id) return;
+    const controller = new AbortController();
     setLoading(true);
+    setError('');
     api
-      .get<{ book: ApiBook }>(`/books/${id}`)
+      .get<{ book: ApiBook }>(`/books/${id}`, { signal: controller.signal })
       .then(({ data }) => {
         const b = data.book;
         setBook({
@@ -91,8 +96,12 @@ export default function BookPage() {
           })),
         });
       })
-      .catch(() => setError('Libro non trovato'))
+      .catch((err) => {
+        if (err?.code === 'ERR_CANCELED') return;
+        setError('Libro non trovato');
+      })
       .finally(() => setLoading(false));
+    return () => controller.abort();
   }, [id]);
 
   const handleBackFromCamera = useCallback(() => {
@@ -179,7 +188,7 @@ export default function BookPage() {
   return (
     <div className="page-content book-page">
       {loading && <LiberyLoading variant="page" />}
-      {error && <p className="text-danger px-3 py-3">{error}</p>}
+      {error && <p className="text-danger px-3 py-3" role="alert">{error}</p>}
 
       {book && (
         <div className="book-page-inner">

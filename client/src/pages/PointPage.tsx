@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useOutletContext, useParams } from 'react-router-dom';
-import axios from 'axios';
+import { getApiError } from '@/lib/apiError';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import BookListRow from '@/components/BookListRow';
 import type { BookListRowMenuItems } from '@/components/BookListRowMenu';
 import { BOOK_ACTION_LABELS } from '@/lib/bookActions';
@@ -22,6 +23,7 @@ import { POINT_TYPE_HERO, POINT_TYPE_LABELS } from '@/lib/mapIcons';
 import { useAuthStore } from '@/stores/authStore';
 import { useSlotsStore } from '@/stores/slotsStore';
 import type { MapPoint } from '@/types/point';
+import { usePageScrollRestore } from '@/hooks/usePageScrollRestore';
 
 const BOOKS_PAGE_SIZE = 20;
 
@@ -71,6 +73,9 @@ export default function PointPage() {
   const [myReservations, setMyReservations] = useState<MyReservation[]>([]);
   const [slotSummary, setSlotSummary] = useState<SlotSummary | null>(null);
 
+  useDocumentTitle(point?.name ?? (loading ? null : 'Punto'));
+  usePageScrollRestore(id ? `/punto/${id}` : null, { ready: !loading });
+
   const loadInventory = useCallback(async (pointId: string) => {
     const { data } = await api.get<{ books: InventoryBook[] }>(`/points/${pointId}/books`);
     setBooks(data.books);
@@ -98,18 +103,23 @@ export default function PointPage() {
 
   useEffect(() => {
     if (!id) return;
+    const controller = new AbortController();
     setLoading(true);
     setError('');
     Promise.all([
-      api.get<{ point: MapPoint }>(`/points/${id}`),
+      api.get<{ point: MapPoint }>(`/points/${id}`, { signal: controller.signal }),
       loadInventory(id),
       loadReservations(),
     ])
       .then(([pointRes]) => {
         setPoint(pointRes.data.point);
       })
-      .catch(() => setError('Punto non trovato'))
+      .catch((err) => {
+        if (err?.code === 'ERR_CANCELED') return;
+        setError('Punto non trovato');
+      })
       .finally(() => setLoading(false));
+    return () => controller.abort();
   }, [id, loadInventory, loadReservations]);
 
   useEffect(() => {
@@ -212,10 +222,7 @@ export default function PointPage() {
       toast.success(data.message);
       await loadInventory(point.id);
     } catch (err) {
-      const msg = axios.isAxiosError(err)
-        ? (err.response?.data as { error?: string })?.error ?? 'Segnalazione non riuscita'
-        : 'Errore di rete';
-      toast.error(msg);
+      toast.error(getApiError(err, 'Segnalazione non riuscita'));
     } finally {
       setReportBusyId(null);
     }
@@ -233,10 +240,7 @@ export default function PointPage() {
       toast.success(data.message ?? 'Libro prenotato');
       await Promise.all([loadInventory(point.id), loadReservations(), refreshSlots()]);
     } catch (err) {
-      const msg = axios.isAxiosError(err)
-        ? (err.response?.data as { error?: string })?.error ?? 'Prenotazione non riuscita'
-        : 'Errore di rete';
-      toast.error(msg);
+      toast.error(getApiError(err, 'Prenotazione non riuscita'));
     } finally {
       setReserveBusyId(null);
     }
@@ -250,10 +254,7 @@ export default function PointPage() {
       toast.info('Prenotazione annullata');
       await Promise.all([loadInventory(point.id), loadReservations(), refreshSlots()]);
     } catch (err) {
-      const msg = axios.isAxiosError(err)
-        ? (err.response?.data as { error?: string })?.error ?? 'Annullamento non riuscito'
-        : 'Errore di rete';
-      toast.error(msg);
+      toast.error(getApiError(err, 'Annullamento non riuscito'));
     } finally {
       setCancelBusyId(null);
     }
@@ -270,13 +271,13 @@ export default function PointPage() {
   return (
     <div className="page-content point-page">
       {loading && <LiberyLoading variant="page" />}
-      {error && <p className="text-danger px-3 py-3">{error}</p>}
+      {error && <p className="text-danger px-3 py-3" role="alert">{error}</p>}
 
       {point && heroTheme && (
         <>
           <div className="point-hero">
             {heroPhoto ? (
-              <img src={heroPhoto} alt="" className="point-hero-img" />
+              <img src={heroPhoto} alt={point.name} className="point-hero-img" />
             ) : (
               <div
                 className="point-hero-placeholder"

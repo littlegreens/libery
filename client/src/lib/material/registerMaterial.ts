@@ -24,6 +24,4 @@ import 'material/chips/chip.js';
 import 'material/chips/chip-set.js';
 import 'material/badge/badge.js';
 
-/** Web component custom Libery (Lit), esempio per varianti non coperte da `md-*`. */
-import '@/web-components/libery-alert-banner';
 import '@/web-components/libery-point-type-badge';

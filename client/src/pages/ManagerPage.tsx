@@ -1,8 +1,9 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { toast } from '@/stores/toastStore';
 import { useOutletContext } from 'react-router-dom';
-import axios from 'axios';
 import { api } from '@/lib/api';
+import { getApiError } from '@/lib/apiError';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import type { ShellOutletContext } from '@/components/AppShell';
 import { useAuthStore } from '@/stores/authStore';
 import LiberyLoading from '@/components/LiberyLoading';
@@ -41,6 +42,7 @@ type InventoryBook = {
 };
 
 export default function ManagerPage() {
+  useDocumentTitle('Il mio punto');
   const { setPageBar } = useOutletContext<ShellOutletContext>();
   const myRole = useAuthStore((s) => s.user?.role);
   const [point, setPoint] = useState<ManagerPoint | null>(null);
@@ -155,7 +157,8 @@ export default function ManagerPage() {
       setAddScannerActive(false);
       toast.success(`"${data.book.title}" aggiunto in libreria`);
     } catch (err) {
-      if (axios.isAxiosError(err) && err.response?.status === 404) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 404) {
         cameraAlerts.bookNotFound();
       } else {
         cameraAlerts.bookNotRecognized();
@@ -173,15 +176,7 @@ export default function ManagerPage() {
       const { data } = await api.get<{ point: ManagerPoint }>('/manager/point');
       setPoint(data.point);
     } catch (err) {
-      const serverMsg = axios.isAxiosError(err)
-        ? (err.response?.data as { error?: string })?.error
-        : undefined;
-      const status = axios.isAxiosError(err) ? err.response?.status : undefined;
-      if (status === 403) {
-        setError('Sessione non aggiornata. Esci e accedi di nuovo per aggiornare il ruolo.');
-      } else {
-        setError(serverMsg ?? 'Impossibile caricare il punto assegnato');
-      }
+      setError(getApiError(err, 'Punto non disponibile'));
     } finally {
       setLoading(false);
     }
@@ -217,10 +212,7 @@ export default function ManagerPage() {
       setStaffMsg('Addetto abilitato (email con password se nuovo account).');
       await loadStaff();
     } catch (err) {
-      const msg = axios.isAxiosError(err)
-        ? (err.response?.data as { error?: string })?.error ?? 'Errore'
-        : 'Errore di rete';
-      setStaffMsg(msg);
+      setStaffMsg(getApiError(err, 'Operazione non riuscita'));
     }
   }
 
