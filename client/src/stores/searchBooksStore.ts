@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { DiscoverPayload } from '@/components/BookDiscoverSections';
 import type { BookAvailability } from '@/types/book';
 
 export type SearchBookResult = {
@@ -34,14 +35,19 @@ export type SearchBooksSnapshot = {
 
 type SearchBooksState = {
   snapshot: SearchBooksSnapshot | null;
+  /** Sezioni discover Libri: una fetch per sessione, non legata al watch GPS. */
+  discoverCache: DiscoverPayload | null;
   save: (snapshot: SearchBooksSnapshot) => void;
+  setDiscoverCache: (data: DiscoverPayload) => void;
   clear: () => void;
 };
 
 export const useSearchBooksStore = create<SearchBooksState>((set) => ({
   snapshot: null,
+  discoverCache: null,
   save: (snapshot) => set({ snapshot }),
-  clear: () => set({ snapshot: null }),
+  setDiscoverCache: (data) => set({ discoverCache: data }),
+  clear: () => set({ snapshot: null, discoverCache: null }),
 }));
 
 /** `location.state` per tornare alla ricerca da scheda libro o punto. */

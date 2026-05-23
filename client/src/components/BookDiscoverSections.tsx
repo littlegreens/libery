@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import BookListRow from '@/components/BookListRow';
 import type { SearchBookResult } from '@/stores/searchBooksStore';
 import type { BookListRowMenuItems } from '@/components/BookListRowMenu';
@@ -66,7 +67,7 @@ type Props = {
   onPick: (book: SearchBookResult) => void;
 };
 
-export default function BookDiscoverSections({ data, loading, loggedIn, favoriteMenu, onPick }: Props) {
+function BookDiscoverSections({ data, loading, loggedIn, favoriteMenu, onPick }: Props) {
   if (loading) {
     return <p className="text-muted small px-3">Caricamento suggerimenti…</p>;
   }
@@ -106,3 +107,5 @@ export default function BookDiscoverSections({ data, loading, loggedIn, favorite
     </div>
   );
 }
+
+export default memo(BookDiscoverSections);

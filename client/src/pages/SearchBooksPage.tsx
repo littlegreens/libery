@@ -4,7 +4,8 @@ import { api } from '@/lib/api';
 import { getApiError } from '@/lib/apiError';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import BookSearchBottomSheet from '@/components/BookSearchBottomSheet';
-import BookDiscoverSections, { type DiscoverPayload } from '@/components/BookDiscoverSections';
+import BookDiscoverSections from '@/components/BookDiscoverSections';
+import { useBooksDiscover } from '@/hooks/useBooksDiscover';
 import BookListRow from '@/components/BookListRow';
 import LiberyOutlinedSearchField from '@/components/LiberyOutlinedSearchField';
 import { LiberyButton } from '@/lib/material/md-react';
@@ -38,10 +39,10 @@ export default function SearchBooksPage() {
   const [error, setError] = useState('');
   /** Libro selezionato dalla lista risultati (bottom sheet). */
   const [picked, setPicked] = useState<SearchBookResult | null>(null);
-  const [discover, setDiscover] = useState<DiscoverPayload | null>(null);
-  const [discoverLoading, setDiscoverLoading] = useState(true);
   const { pos: userPos } = useUserPosition();
   const showDiscover = !searched && !q.trim();
+  const discoverActive = isSearchBooksPath(pathname) && showDiscover;
+  const { discover, loading: discoverLoading } = useBooksDiscover(discoverActive);
   const searchBackState = useMemo(() => searchBooksBackState(pathname), [pathname]);
   usePageScrollRestore(isSearchBooksPath(pathname) ? pathname : null);
   const saveSearchSnapshot = useSearchBooksStore((s) => s.save);
@@ -109,25 +110,6 @@ export default function SearchBooksPage() {
     });
     return () => setPageBar(null);
   }, [setPageBar]);
-
-  useEffect(() => {
-    if (!isSearchBooksPath(pathname) || searched) return;
-    const ac = new AbortController();
-    setDiscoverLoading(true);
-    const params: Record<string, number> = {};
-    if (userPos) {
-      params.lat = userPos.lat;
-      params.lng = userPos.lng;
-    }
-    api
-      .get<DiscoverPayload>('/books/discover', { params, signal: ac.signal })
-      .then((r) => setDiscover(r.data))
-      .catch(() => setDiscover(null))
-      .finally(() => {
-        if (!ac.signal.aborted) setDiscoverLoading(false);
-      });
-    return () => ac.abort();
-  }, [pathname, searched, userPos?.lat, userPos?.lng]);
 
   async function lookupIsbn(isbnRaw: string) {
     const isbn = parseIsbn(isbnRaw);
