@@ -15,12 +15,15 @@ import AdminUsers from '@/pages/admin/AdminUsers';
 import AdminPoints from '@/pages/admin/AdminPoints';
 import AdminRequests from '@/pages/admin/AdminRequests';
 import ManagerPage from '@/pages/ManagerPage';
+import VerifyEmailPage from '@/pages/VerifyEmailPage';
+import BecomePointPage from '@/pages/BecomePointPage';
 
 export default function App() {
   return (
     <Routes>
       <Route path="/entra" element={<AuthPage />} />
       <Route path="/registrati" element={<AuthPage />} />
+      <Route path="/verifica-email" element={<VerifyEmailPage />} />
       <Route path="/admin" element={<AdminLayout />}>
         <Route index element={<AdminDashboard />} />
         <Route path="richieste" element={<AdminRequests />} />
@@ -39,6 +42,7 @@ export default function App() {
         <Route path="/punto/:id" element={<PointPage />} />
         <Route path="/libro/:id" element={<BookPage />} />
         <Route path="/gestore" element={<ManagerPage />} />
+        <Route path="/diventa-punto" element={<BecomePointPage />} />
       </Route>
     </Routes>
   );

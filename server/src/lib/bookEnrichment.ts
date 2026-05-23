@@ -1,9 +1,6 @@
 import type { Book } from '@prisma/client';
+import { isWeakTitle } from './bookMetadataQuality.js';
 import { isValidCoverUrl } from './coverPick.js';
-
-function isWeakTitle(title: string): boolean {
-  return /^ISBN\s*\d{10,13}$/i.test(title.trim());
-}
 
 /**
  * True se manca qualcosa di essenziale (titolo, autore, copertina, trama).

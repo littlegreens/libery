@@ -10,13 +10,17 @@ const createUserSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
   displayName: z.string().min(2).max(80).optional(),
-  role: z.enum(['user', 'point_manager', 'admin']).default('user'),
+  role: z.enum(['user', 'point_staff', 'point_manager']).default('user'),
 });
 
 const listQuerySchema = z.object({
   q: z.string().optional(),
-  role: z.enum(['user', 'point_manager', 'admin']).optional(),
+  role: z.enum(['user', 'point_staff', 'point_manager', 'admin']).optional(),
   active: z.enum(['true', 'false']).optional(),
+});
+
+const roleUpdateSchema = z.object({
+  role: z.enum(['user', 'point_staff', 'point_manager', 'admin']),
 });
 
 router.get('/', async (req, res, next) => {
@@ -44,8 +48,12 @@ router.get('/', async (req, res, next) => {
         libriExtra: true,
         libriOggiUsed: true,
         isActive: true,
+        emailVerifiedAt: true,
         createdAt: true,
         managedPoints: { select: { id: true, name: true, status: true } },
+        pointStaffAt: {
+          select: { point: { select: { id: true, name: true } } },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -71,6 +79,7 @@ router.post('/', async (req, res, next) => {
         passwordHash: await hashPassword(body.password),
         displayName: body.displayName,
         role: body.role,
+        emailVerifiedAt: new Date(),
       },
       select: {
         id: true,
@@ -82,6 +91,58 @@ router.post('/', async (req, res, next) => {
       },
     });
     res.status(201).json({ user });
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.put('/:id/role', async (req: AuthRequest, res, next) => {
+  try {
+    const body = roleUpdateSchema.parse(req.body);
+    const userId = String(req.params.id);
+
+    const target = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, role: true, managedPoints: { select: { id: true } } },
+    });
+    if (!target) {
+      res.status(404).json({ error: 'Utente non trovato' });
+      return;
+    }
+
+    if (userId === req.user!.sub && target.role === 'admin' && body.role !== 'admin') {
+      res.status(400).json({ error: 'Non puoi rimuovere il tuo ruolo admin' });
+      return;
+    }
+
+    if (body.role === 'admin' && req.user!.role !== 'admin') {
+      res.status(403).json({ error: 'Solo un admin può promuovere altri admin' });
+      return;
+    }
+
+    if (body.role === 'point_manager' && target.managedPoints.length === 0) {
+      res.status(400).json({
+        error: 'Assegna prima un punto come responsabile (approva richiesta o crea punto)',
+      });
+      return;
+    }
+
+    if (body.role === 'user' && target.role === 'point_staff') {
+      await prisma.pointStaff.deleteMany({ where: { userId } });
+    }
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { role: body.role },
+      select: {
+        id: true,
+        email: true,
+        displayName: true,
+        role: true,
+        isActive: true,
+      },
+    });
+    res.json({ user });
   } catch (e) {
     next(e);
   }

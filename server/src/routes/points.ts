@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { openLibraryCoverByIsbn } from '../lib/bookMetadataMerge.js';
 import { prisma } from '../lib/prisma.js';
+import { optionalAuthenticate, type AuthRequest } from '../middleware/auth.js';
 import { resolveBookByIsbn } from '../services/bookCatalog.js';
 import type { PointStatus, PointType } from '@prisma/client';
 
@@ -152,7 +153,20 @@ router.get('/:id/availability/:isbn', async (req, res, next) => {
   }
 });
 
-router.get('/:id/books', async (req, res, next) => {
+const bookSelect = {
+  id: true,
+  isbn: true,
+  title: true,
+  author: true,
+  year: true,
+  genre: true,
+  language: true,
+  pages: true,
+  description: true,
+  coverPath: true,
+} as const;
+
+router.get('/:id/books', optionalAuthenticate, async (req: AuthRequest, res, next) => {
   try {
     const point = await prisma.point.findUnique({
       where: { id: req.params.id },
@@ -163,63 +177,83 @@ router.get('/:id/books', async (req, res, next) => {
       return;
     }
 
-    let inventory = await prisma.pointBook.findMany({
-      where: {
-        pointId: point.id,
-        status: 'active',
-        copies: { gt: 0 },
-      },
-      include: {
-        book: {
-          select: {
-            id: true,
-            isbn: true,
-            title: true,
-            author: true,
-            year: true,
-            genre: true,
-            language: true,
-            pages: true,
-            description: true,
-            coverPath: true,
-          },
-        },
-      },
-      orderBy: { book: { title: 'asc' } },
-    });
+    const userId = req.user?.sub;
+    const now = new Date();
 
-    const missingCover = inventory.filter((row) => !row.book.coverPath).slice(0, 6);
-    if (missingCover.length > 0) {
-      await Promise.allSettled(missingCover.map((row) => resolveBookByIsbn(row.book.isbn)));
-      inventory = await prisma.pointBook.findMany({
+    const fetchInventory = () =>
+      prisma.pointBook.findMany({
         where: {
           pointId: point.id,
           status: 'active',
           copies: { gt: 0 },
         },
-        include: {
-          book: {
-            select: {
-              id: true,
-              isbn: true,
-              title: true,
-              author: true,
-              year: true,
-              genre: true,
-              language: true,
-              pages: true,
-              description: true,
-              coverPath: true,
+        include: { book: { select: bookSelect } },
+        orderBy: { book: { title: 'asc' } },
+      });
+
+    let inventory = await fetchInventory();
+
+    const missingCover = inventory.filter((row) => !row.book.coverPath).slice(0, 6);
+    if (missingCover.length > 0) {
+      await Promise.allSettled(missingCover.map((row) => resolveBookByIsbn(row.book.isbn)));
+      inventory = await fetchInventory();
+    }
+
+    type Row = (typeof inventory)[number];
+    const byBookId = new Map<string, { row: Row; myReservation: { id: string; expiresAt: Date } | null }>();
+    for (const row of inventory) {
+      byBookId.set(row.book.id, { row, myReservation: null });
+    }
+
+    if (userId) {
+      const reservedRows = await prisma.pointBook.findMany({
+        where: {
+          pointId: point.id,
+          status: 'active',
+          reservations: {
+            some: {
+              userId,
+              status: 'active',
+              expiresAt: { gt: now },
             },
           },
         },
-        orderBy: { book: { title: 'asc' } },
+        include: {
+          book: { select: bookSelect },
+          reservations: {
+            where: {
+              userId,
+              status: 'active',
+              expiresAt: { gt: now },
+            },
+            take: 1,
+            orderBy: { expiresAt: 'asc' },
+          },
+        },
       });
+
+      for (const row of reservedRows) {
+        const mine = row.reservations[0];
+        if (!mine) continue;
+        const existing = byBookId.get(row.book.id);
+        if (existing) {
+          existing.myReservation = { id: mine.id, expiresAt: mine.expiresAt };
+        } else {
+          byBookId.set(row.book.id, {
+            row,
+            myReservation: { id: mine.id, expiresAt: mine.expiresAt },
+          });
+        }
+      }
     }
+
+    const merged = [...byBookId.values()].sort((a, b) =>
+      a.row.book.title.localeCompare(b.row.book.title, 'it'),
+    );
 
     res.json({
       pointId: point.id,
-      books: inventory.map((row) => ({
+      books: merged.map(({ row, myReservation }) => ({
         id: row.book.id,
         isbn: row.book.isbn,
         title: row.book.title,
@@ -231,8 +265,14 @@ router.get('/:id/books', async (req, res, next) => {
         description: row.book.description,
         coverPath: row.book.coverPath ?? openLibraryCoverByIsbn(row.book.isbn),
         copies: row.copies,
+        myReservation: myReservation
+          ? {
+              id: myReservation.id,
+              expiresAt: myReservation.expiresAt.toISOString(),
+            }
+          : undefined,
       })),
-      total: inventory.length,
+      total: merged.length,
     });
   } catch (e) {
     next(e);

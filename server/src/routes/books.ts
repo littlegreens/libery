@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma.js';
 import { authenticate, optionalAuthenticate, type AuthRequest } from '../middleware/auth.js';
 import { isValidIsbnInput, normalizeIsbn } from '../lib/isbn.js';
 import { isValidCoverUrl, pickCoverUrlSync } from '../lib/coverPick.js';
+import { isTrustedDbBook } from '../lib/bookMetadataQuality.js';
 import { findBookByIsbn, resolveBookByIsbn, toBookDto } from '../services/bookCatalog.js';
 import type { BookDto } from '../services/bookCatalog.js';
 
@@ -62,6 +63,7 @@ router.get('/search', async (req, res, next) => {
         author: b.author,
         year: b.year,
         genre: b.genre,
+        publisher: b.publisher,
         description: b.description,
         coverPath: b.coverPath,
         source: b.source,
@@ -127,7 +129,7 @@ router.get('/isbn/:isbn', async (req, res, next) => {
 
     if (!fetchExternal) {
       const book = await findBookByIsbn(raw);
-      if (!book) {
+      if (!book || !isTrustedDbBook(book)) {
         res.status(404).json({ error: 'Libro non in catalogo', isbn: normalizeIsbn(raw) });
         return;
       }

@@ -49,6 +49,7 @@ export default defineConfig({
     },
   },
   server: {
+    host: true,
     port: 5173,
     strictPort: true,
     // Accetta richieste da host arbitrari (necessario per tunnel pubblici

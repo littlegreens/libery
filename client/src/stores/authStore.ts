@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export type UserRole = 'user' | 'point_manager' | 'admin';
+export type UserRole = 'user' | 'point_staff' | 'point_manager' | 'admin';
 
 export type AuthUser = {
   id: string;

@@ -1,14 +1,26 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { api } from '@/lib/api';
 import { classifyScan } from '@/lib/scanUtils';
+import { parseUserQrPayload } from '@/lib/userQr';
 import BarcodeScanner from '@/components/BarcodeScanner';
+import CameraFlowScanFeedback from '@/components/CameraFlowScanFeedback';
+import { resolveBookByIsbn } from '@/lib/bookByIsbn';
+import { cameraAlerts } from '@/lib/cameraAlerts';
 import CameraBookPreview from '@/components/CameraBookPreview';
-import { logBookResolveToConsole } from '@/lib/logBookResolve';
+import UserLeaveQrSheet from '@/components/UserLeaveQrSheet';
+import CameraFlowInfoMenu from '@/components/CameraFlowInfoMenu';
+import BookCoverThumb from '@/components/BookCoverThumb';
+import { CAMERA_GUIDE_LINES } from '@/lib/pointHelp';
 import { formatDistanceKm, haversineKm, NEAR_POINT_KM, nearPointRadiusLabel } from '@/lib/geo';
-import { POINT_TYPE_LABELS } from '@/lib/mapIcons';
+import PointTypeBadge from '@/components/PointTypeBadge';
 import type { LeaveBackpackBook } from '@/components/AppShell';
 import type { MapPoint, PointType } from '@/types/point';
+import { LiberyButton, MdIcon, MdIconButton, MdTextField } from '@/lib/material/md-react';
+import { toast } from '@/stores/toastStore';
+import { useCameraSessionStore } from '@/stores/cameraSessionStore';
+import { useAuthStore } from '@/stores/authStore';
 
 type BookInfo = {
   id: string;
@@ -17,8 +29,18 @@ type BookInfo = {
   author: string | null;
   year?: number | null;
   genre?: string | null;
+  publisher?: string | null;
   description?: string | null;
   coverPath?: string | null;
+};
+
+type ManagerScanPreview = {
+  action: 'leave' | 'pickup';
+  confirmLabel: string;
+  book: { id: string; isbn: string; title: string; author: string | null; coverPath: string | null };
+  user: { id: string; displayName: string | null; email: string };
+  checks: { canConfirm: boolean; blockReason: string | null };
+  userHadActiveTake: boolean;
 };
 
 type PointInfo = {
@@ -52,18 +74,11 @@ function isbnMatches(scanned: string, expected: string): boolean {
 type Props = {
   open: boolean;
   onClose: () => void;
-  /** Se aperto dalla scheda /punto/:id â€” flusso â€œlascio quiâ€ con conferma sede */
+  /** Se aperto dalla scheda /punto/:id ? flusso ?lascio qui? con conferma sede */
   contextPointId?: string | null;
   /** Libro dallo zaino: scegli punto vicino (GPS/QR) e conferma ISBN */
   leaveBackpackBook?: LeaveBackpackBook | null;
 };
-
-const STEPS: { key: Phase; label: string }[] = [
-  { key: 'scan_detect', label: 'Inquadra' },
-  { key: 'book_preview', label: 'Libro' },
-  { key: 'scan_point_qr', label: 'Punto' },
-  { key: 'actions', label: 'Azione' },
-];
 
 function toPointInfo(p: MapPoint): PointInfo {
   return {
@@ -79,28 +94,17 @@ function formatPointLine(p: PointInfo): string {
   return [p.address, p.city].filter(Boolean).join(', ');
 }
 
-function stepIndex(phase: Phase, flowMode: FlowMode): number {
-  if (flowMode === 'leave_here') {
-    if (phase === 'confirm_near') return 0;
-    if (phase === 'scan_isbn' || phase === 'book_preview') return 1;
-    return 2;
-  }
-  if (flowMode === 'leave_backpack') {
-    if (phase === 'scan_point_qr') return 0;
-    if (phase === 'scan_isbn' || phase === 'book_preview') return 1;
-    return 2;
-  }
-  if (phase === 'scan_detect' || phase === 'scan_isbn') return 0;
-  if (phase === 'book_preview') return 1;
-  if (phase === 'scan_point_qr') return 2;
-  return 3;
-}
-
-export default function CameraFlow({ open, onClose, contextPointId, leaveBackpackBook }: Props) {
+export default function CameraFlow({
+  open,
+  onClose,
+  contextPointId: _contextPointId,
+  leaveBackpackBook,
+}: Props) {
+  const navigate = useNavigate();
   const [flowMode, setFlowMode] = useState<FlowMode>('full');
   const [nearKm, setNearKm] = useState<number | null>(null);
   const [phase, setPhase] = useState<Phase>('scan_detect');
-  const [pointPickMode, setPointPickMode] = useState<PointPickMode>('idle');
+  const [, setPointPickMode] = useState<PointPickMode>('idle');
   const [point, setPoint] = useState<PointInfo | null>(null);
   const [book, setBook] = useState<BookInfo | null>(null);
   const [allPoints, setAllPoints] = useState<MapPoint[]>([]);
@@ -111,20 +115,49 @@ export default function CameraFlow({ open, onClose, contextPointId, leaveBackpac
     copies: number;
     message: string;
   } | null>(null);
-  const [loading, setLoading] = useState(false);
+  type LoadingPhase = 'idle' | 'reading' | 'fetching';
+  const [loadingPhase, setLoadingPhase] = useState<LoadingPhase>('idle');
+  const loading = loadingPhase !== 'idle';
   const [scanHint, setScanHint] = useState('');
   const [bookProvider, setBookProvider] = useState<'google' | 'openlibrary' | 'wikidata' | 'db' | null>(
     null,
   );
   const [manualIsbn, setManualIsbn] = useState('');
+  const [leaveQrOpen, setLeaveQrOpen] = useState(false);
+  const [cornerDonatePick, setCornerDonatePick] = useState(false);
   const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
+  const [managerPreview, setManagerPreview] = useState<ManagerScanPreview | null>(null);
+  const [managerConfirmBusy, setManagerConfirmBusy] = useState(false);
+  // Step ISBN: dopo il QR pickup, il responsabile deve anche scansionare il libro fisico
+  const [managerIsbnStep, setManagerIsbnStep] = useState(false);
+  const [managerIsbnOk, setManagerIsbnOk] = useState(false);
   const loadingRef = useRef(false);
   const processingIsbnRef = useRef(false);
+  const restoredSessionRef = useRef(false);
+  const saveSnapshot = useCameraSessionStore((s) => s.saveSnapshot);
+  const consumeSnapshot = useCameraSessionStore((s) => s.consumeSnapshot);
+  const myRole = useAuthStore((s) => s.user?.role);
+  const isOperator = myRole === 'point_manager' || myRole === 'point_staff' || myRole === 'admin';
 
   useEffect(() => {
     loadingRef.current = loading;
   }, [loading]);
+
+  useEffect(() => {
+    if (!open) {
+      restoredSessionRef.current = false;
+      return;
+    }
+    const snap = consumeSnapshot();
+    if (!snap) return;
+    restoredSessionRef.current = true;
+    setFlowMode(snap.flowMode as FlowMode);
+    setPhase(snap.phase as Phase);
+    setBook(snap.book);
+    setPoint(snap.point);
+    setBookProvider((snap.bookProvider as typeof bookProvider) ?? null);
+    setScanHint('');
+  }, [open, consumeSnapshot]);
 
   const reset = useCallback(() => {
     setFlowMode('full');
@@ -138,11 +171,16 @@ export default function CameraFlow({ open, onClose, contextPointId, leaveBackpac
     setGpsDenied(false);
     setAvailability(null);
     setMessage('');
-    setError('');
     setScanHint('');
     setBookProvider(null);
     setManualIsbn('');
-    setLoading(false);
+    setLeaveQrOpen(false);
+    setCornerDonatePick(false);
+    setManagerPreview(null);
+    setManagerConfirmBusy(false);
+    setManagerIsbnStep(false);
+    setManagerIsbnOk(false);
+    setLoadingPhase('idle');
     processingIsbnRef.current = false;
   }, []);
 
@@ -178,106 +216,22 @@ export default function CameraFlow({ open, onClose, contextPointId, leaveBackpac
       return;
     }
 
-    if (!contextPointId) {
-      setFlowMode('full');
-      setPhase('scan_detect');
-      void loadPointsCatalog();
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            setUserPos({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-            setGpsDenied(false);
-          },
-          () => setGpsDenied(true),
-          { enableHighAccuracy: true, timeout: 10000 },
-        );
-      }
-      return;
+    // La fotocamera ? sempre uguale indipendentemente da dove viene aperta.
+    // contextPointId viene ignorato: il flusso ? sempre scan_detect standard.
+    setFlowMode('full');
+    setPhase('scan_detect');
+    void loadPointsCatalog();
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setUserPos({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          setGpsDenied(false);
+        },
+        () => setGpsDenied(true),
+        { enableHighAccuracy: true, timeout: 10000 },
+      );
     }
-
-    let cancelled = false;
-    setLoading(true);
-    setError('');
-
-    (async () => {
-      try {
-        const { data } = await api.get<{ point: MapPoint }>(`/points/${contextPointId}`);
-        if (cancelled) return;
-        const pinfo = toPointInfo(data.point);
-        setPoint(pinfo);
-        setFlowMode('leave_here');
-        setPhase('confirm_near');
-
-        if (navigator.geolocation && data.point.latitude != null && data.point.longitude != null) {
-          navigator.geolocation.getCurrentPosition(
-            (pos) => {
-              if (cancelled) return;
-              const km = haversineKm(
-                pos.coords.latitude,
-                pos.coords.longitude,
-                data.point.latitude!,
-                data.point.longitude!,
-              );
-              setNearKm(km);
-              setGpsDenied(false);
-            },
-            () => {
-              if (!cancelled) setGpsDenied(true);
-            },
-            { enableHighAccuracy: false, timeout: 8000 },
-          );
-        }
-      } catch {
-        if (!cancelled) {
-          setError('Impossibile caricare il punto');
-          setFlowMode('full');
-          setPhase('scan_detect');
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [open, contextPointId, leaveBackpackBook]);
-
-  const loadBook = async (
-    isbn: string,
-  ): Promise<{ book: BookInfo; provider?: 'google' | 'openlibrary' | 'wikidata' | 'db' }> => {
-    const { data } = await api.get<{
-      book: BookInfo;
-      source: string;
-      created: boolean;
-      provider?: 'google' | 'openlibrary' | 'wikidata' | 'db';
-      fieldsUpdated?: string[];
-      attempts?: Array<{ source: string; status: string; detail?: string }>;
-      debug?: {
-        googleBooksConfigured?: boolean;
-        coverInDb?: boolean;
-        coverSentToClient?: boolean;
-        coverFallbackUsed?: boolean;
-        sources?: Record<
-          string,
-          {
-            title: string | null;
-            author: string | null;
-            descriptionLen: number;
-            cover: string | null;
-            year: number | null;
-          } | null
-        >;
-      };
-    }>(`/books/isbn/${isbn}`, { params: { debug: '1' } });
-
-    logBookResolveToConsole(isbn, data);
-
-    return {
-      book: { ...data.book, isbn },
-      provider: data.provider ?? 'db',
-    };
-  };
+  }, [open, leaveBackpackBook]);
 
   const checkAvailability = async (pointId: string, isbn: string) => {
     const { data } = await api.get<{
@@ -349,64 +303,24 @@ export default function CameraFlow({ open, onClose, contextPointId, leaveBackpac
       .slice(0, 8);
   }, [allPoints, userPos]);
 
-  const autoDetectPoint = useCallback(
-    async (b: BookInfo) => {
-      if (!navigator.geolocation) {
-        setGpsDenied(true);
-        return;
-      }
-      try {
-        const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, {
-            enableHighAccuracy: true,
-            timeout: 10000,
-          });
-        });
-        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        setUserPos(coords);
-        setGpsDenied(false);
-
-        let points = allPoints;
-        if (points.length === 0) {
-          const { data } = await api.get<{ points: MapPoint[] }>('/points', {
-            params: { status: 'approved' },
-          });
-          points = data.points;
-          setAllPoints(points);
-        }
-
-        let best: { point: MapPoint; km: number } | null = null;
-        for (const p of points) {
-          if (p.latitude == null || p.longitude == null) continue;
-          const km = haversineKm(coords.lat, coords.lng, p.latitude, p.longitude);
-          if (km <= NEAR_POINT_KM && (!best || km < best.km)) {
-            best = { point: p, km };
-          }
-        }
-        if (best) {
-          setPoint(toPointInfo(best.point));
-          setNearKm(best.km);
-          await checkAvailability(best.point.id, b.isbn);
-        }
-      } catch {
-        setGpsDenied(true);
-      }
-    },
-    [allPoints, checkAvailability],
+  const nearbyCorners = useMemo(
+    () => nearbyPoints.filter(({ point: p }) => p.type === 'corner_free'),
+    [nearbyPoints],
   );
+
+  const pickingCornerForDonate = cornerDonatePick && Boolean(book) && !leaveBackpackBook;
 
   const applyBookIsbn = useCallback(async (isbn: string) => {
     if (processingIsbnRef.current) return;
     processingIsbnRef.current = true;
-    setScanHint('Recupero informazioni…');
-    setError('');
+    setScanHint(CAMERA_GUIDE_LINES.findBook);
     setBook(null);
     setBookProvider(null);
-    setLoading(true);
+    setLoadingPhase('fetching');
     try {
       if (flowMode === 'leave_backpack' && leaveBackpackBook) {
         if (!isbnMatches(isbn, leaveBackpackBook.isbn)) {
-          setError('ISBN non corrisponde al libro nel tuo zaino. Inquadra il volume giusto.');
+          cameraAlerts.isbnNotRecognized();
           setScanHint('');
           return;
         }
@@ -421,78 +335,90 @@ export default function CameraFlow({ open, onClose, contextPointId, leaveBackpac
         return;
       }
 
-      const { book: b, provider } = await loadBook(isbn);
+      const { book: b, provider } = await resolveBookByIsbn(isbn);
       setBook(b);
-      setBookProvider(provider ?? 'db');
-      setPhase('book_preview');
-      if (flowMode === 'leave_here' && point) {
+      setBookProvider(provider === 'cache' || provider === 'db' ? 'db' : provider);
+      if (flowMode === 'leave_here' && point?.type === 'corner_free') {
         await checkAvailability(point.id, b.isbn);
-      } else if (flowMode === 'full') {
-        if (point) {
-          await checkAvailability(point.id, b.isbn);
-        } else {
-          void autoDetectPoint(b);
-        }
+        setPhase('actions');
+        setScanHint('');
+        return;
+      }
+
+      setPhase('book_preview');
+      if (flowMode === 'leave_here' && point && point.type !== 'corner_free') {
+        await checkAvailability(point.id, b.isbn);
       }
       setScanHint('');
     } catch (err) {
-      if (axios.isAxiosError(err)) {
-        const body = err.response?.data as { error?: string };
-        if (err.response?.status === 404) {
-          setError(body?.error ?? 'Libro non riconosciuto. Controlla l\'ISBN o riprova.');
-        } else {
-          setError('Impossibile recuperare i dati del libro. Verifica che il server sia avviato.');
-        }
+      if (axios.isAxiosError(err) && err.response?.status === 404) {
+        cameraAlerts.bookNotFound();
       } else {
-        setError('Impossibile recuperare i dati del libro.');
+        cameraAlerts.bookNotRecognized();
       }
       setScanHint('');
     } finally {
-      setLoading(false);
+      setLoadingPhase('idle');
       processingIsbnRef.current = false;
     }
-  }, [flowMode, point, leaveBackpackBook, autoDetectPoint, checkAvailability]);
+  }, [flowMode, point, leaveBackpackBook, checkAvailability]);
+
+  /** Codice ISBN letto: ferma decode, mostra ?Sto leggendo?, poi recupero. */
+  const beginIsbnLookup = useCallback(
+    (isbn: string) => {
+      setLoadingPhase('reading');
+      void applyBookIsbn(isbn);
+    },
+    [applyBookIsbn],
+  );
 
   const selectPoint = useCallback(
     async (pinfo: PointInfo, source?: MapPoint) => {
       if (!userPos) {
-        setError('Senza GPS attivo puoi solo inquadrare il cartello Libery (QR).');
+        toast.warning('Senza GPS attivo puoi solo inquadrare il cartello Libery (QR).');
         return;
       }
 
       if (flowMode === 'leave_backpack') {
         const mp = source ?? allPoints.find((p) => p.id === pinfo.id);
         if (!mp || mp.latitude == null || mp.longitude == null) {
-          setError('Coordinate del punto non disponibili. Usa il cartello QR o un punto vicino.');
+          toast.warning('Senza GPS attivo puoi solo inquadrare il cartello Libery (QR).');
           return;
         }
         const km = haversineKm(userPos.lat, userPos.lng, mp.latitude, mp.longitude);
         if (km > NEAR_POINT_KM) {
-          setError(
-            `Devi essere nel punto (entro ${nearPointRadiusLabel()}). Sei a ${formatDistanceKm(km)}.`,
+          toast.warning(
+            `Sei a ${formatDistanceKm(km)}: avvicinati (entro ${nearPointRadiusLabel()}) o usa il cartello QR.`,
+            { duration: 6000 },
           );
           return;
         }
         setNearKm(km);
         setPoint(pinfo);
         setPointPickMode('idle');
-        setError('');
         setPhase('scan_isbn');
         return;
       }
 
       if (!book) return;
+      if (flowMode === 'full' && pinfo.type !== 'corner_free') {
+        toast.warning('Per donare scegli un Corner Free vicino a te.');
+        return;
+      }
       setPoint(pinfo);
       setPointPickMode('idle');
-      setError('');
-      setLoading(true);
+      if (flowMode === 'full' && pinfo.type === 'corner_free') {
+        setPhase('actions');
+        return;
+      }
+      setLoadingPhase('fetching');
       try {
         await checkAvailability(pinfo.id, book.isbn);
         setPhase('actions');
       } catch {
-        setError('Impossibile verificare la disponibilitÃ ');
+        cameraAlerts.bookNotRecognized();
       } finally {
-        setLoading(false);
+        setLoadingPhase('idle');
       }
     },
     [book, flowMode, userPos, allPoints],
@@ -507,16 +433,23 @@ export default function CameraFlow({ open, onClose, contextPointId, leaveBackpac
       if (flowMode === 'leave_backpack') {
         setPoint(pinfo);
         setPointPickMode('idle');
-        setError('');
         setPhase('scan_isbn');
         return;
       }
 
       setPoint(pinfo);
       setPointPickMode('idle');
-      setError('');
 
       if (book) {
+        if (pinfo.type === 'corner_free' && flowMode === 'full') {
+          setNearKm(
+            userPos && mp?.latitude != null && mp.longitude != null
+              ? haversineKm(userPos.lat, userPos.lng, mp.latitude, mp.longitude)
+              : null,
+          );
+          setPhase('actions');
+          return;
+        }
         if (!userPos) {
           await checkAvailability(pinfo.id, book.isbn);
           setPhase('actions');
@@ -532,54 +465,111 @@ export default function CameraFlow({ open, onClose, contextPointId, leaveBackpac
     [allPoints, book, flowMode, selectPoint, userPos],
   );
 
+  const handleManagerQrScan = useCallback(async (qrText: string) => {
+    setLoadingPhase('fetching');
+    setManagerIsbnOk(false);
+    try {
+      const { data } = await api.post<{ preview: ManagerScanPreview }>('/manager/scan', { qr: qrText });
+      setManagerPreview(data.preview);
+      // Per i ritiri (pickup) richiediamo anche la scansione fisica del libro
+      if (data.preview.action === 'pickup') {
+        setManagerIsbnStep(true);
+      }
+    } catch {
+      cameraAlerts.bookNotRecognized();
+    } finally {
+      setLoadingPhase('idle');
+    }
+  }, []);
+
+  const handleManagerConfirm = useCallback(async () => {
+    if (!managerPreview) return;
+    setManagerConfirmBusy(true);
+    try {
+      const { data } = await api.post<{ ok: boolean; message: string }>('/manager/scan/confirm', {
+        action: managerPreview.action,
+        isbn: managerPreview.book.isbn,
+        userId: managerPreview.user.id,
+      });
+      toast.success(data.message);
+      // Chiudi la camera dopo la conferma
+      onClose();
+    } catch {
+      cameraAlerts.bookNotRecognized();
+    } finally {
+      setManagerConfirmBusy(false);
+    }
+  }, [managerPreview, onClose]);
+
   const handleScan = useCallback(
     async (text: string) => {
-      const classified = classifyScan(text);
-      if (!classified) {
-        if (phase === 'scan_detect') {
-          setError('Inquadra il codice a barre del libro o il cartello Libery (QR).');
-        } else if (phase === 'scan_isbn') {
-          setError(`Codice non riconosciuto. Prova a centrare le barre nell'area ISBN.`);
-        } else if (phase === 'scan_point_qr' || pointPickMode === 'scan_qr') {
-          setError('Inquadra il cartello Libery con il QR');
+      // Step ISBN per ritiro: il responsabile deve scansionare il libro fisico
+      if (managerIsbnStep && managerPreview) {
+        const classified = classifyScan(text);
+        if (classified?.kind === 'isbn') {
+          if (isbnMatches(classified.value, managerPreview.book.isbn)) {
+            setManagerIsbnStep(false);
+            setManagerIsbnOk(true);
+          } else {
+            cameraAlerts.isbnNotRecognized();
+          }
+        } else {
+          cameraAlerts.isbnNotRecognized();
         }
         return;
       }
-      setError('');
 
+      // Se operatore (manager/staff), intercetta i QR utente formato L,ISBN,uuid o P,ISBN,uuid
+      if (isOperator && !managerPreview) {
+        const userQr = parseUserQrPayload(text);
+        if (userQr) {
+          await handleManagerQrScan(text);
+          return;
+        }
+      }
+
+      const classified = classifyScan(text);
+      if (!classified) {
+        setLoadingPhase('idle');
+        cameraAlerts.isbnNotRecognized();
+        return;
+      }
       if (phase === 'confirm_near' && classified.kind === 'qr' && point) {
-        setLoading(true);
+        setLoadingPhase('fetching');
         try {
           const { data } = await api.get<{ point: PointInfo }>(`/points/qr/${classified.value}`);
           if (data.point.id !== point.id) {
-            setError('Questo cartello non corrisponde a questo punto.');
+            cameraAlerts.bookNotRecognized();
             return;
           }
           setPhase('scan_isbn');
           setPointPickMode('idle');
-          setError('');
         } catch {
-          setError('Cartello non riconosciuto');
+          cameraAlerts.bookNotRecognized();
         } finally {
-          setLoading(false);
+          setLoadingPhase('idle');
         }
         return;
       }
 
       if (phase === 'scan_detect') {
         if (classified.kind === 'isbn') {
-          await applyBookIsbn(classified.value);
+          beginIsbnLookup(classified.value);
           return;
         }
         if (classified.kind === 'qr') {
           if (loadingRef.current) return;
-          setLoading(true);
+          setLoadingPhase('fetching');
           try {
+            if (flowMode === 'full' && !book) {
+              await goToPointPage(classified.value);
+              return;
+            }
             await applyPointFromQr(classified.value);
           } catch {
-            setError('Cartello non riconosciuto');
+            cameraAlerts.bookNotRecognized();
           } finally {
-            setLoading(false);
+            setLoadingPhase('idle');
           }
         }
         return;
@@ -587,41 +577,40 @@ export default function CameraFlow({ open, onClose, contextPointId, leaveBackpac
 
       if (phase === 'scan_isbn') {
         if (classified.kind !== 'isbn') {
-          setError("Inquadra il codice a barre dell'ISBN sul libro.");
+          cameraAlerts.isbnNotRecognized();
           return;
         }
-        await applyBookIsbn(classified.value);
+        beginIsbnLookup(classified.value);
         return;
       }
 
       if (phase === 'scan_point_qr' && classified.kind === 'qr') {
         if (loadingRef.current) return;
-        setLoading(true);
+        setLoadingPhase('fetching');
         try {
           await applyPointFromQr(classified.value);
         } catch {
-          setError('Cartello non riconosciuto');
+          cameraAlerts.bookNotRecognized();
         } finally {
-          setLoading(false);
+          setLoadingPhase('idle');
         }
       }
     },
-    [phase, pointPickMode, applyPointFromQr, applyBookIsbn],
+    [phase, point, book, flowMode, applyPointFromQr, beginIsbnLookup, isOperator, managerPreview, handleManagerQrScan, managerIsbnStep, goToPointPage, loading],
   );
 
   const submitManualIsbn = () => {
     const classified = classifyScan(manualIsbn.trim());
     if (!classified || classified.kind !== 'isbn') {
-      setError('Inserisci un ISBN valido (10 o 13 cifre)');
+      cameraAlerts.isbnNotRecognized();
       return;
     }
-    void applyBookIsbn(classified.value);
+    beginIsbnLookup(classified.value);
   };
 
   const executeLeave = async () => {
     if (!point || !book) return;
-    setLoading(true);
-    setError('');
+    setLoadingPhase('fetching');
     try {
       const { data } = await api.post<{ message: string }>('/transactions/leave', {
         pointId: point.id,
@@ -629,56 +618,74 @@ export default function CameraFlow({ open, onClose, contextPointId, leaveBackpac
       });
       setMessage(data.message);
       setPhase('done');
-    } catch (err) {
-      const msg = axios.isAxiosError(err)
-        ? (err.response?.data as { error?: string })?.error ?? 'Operazione non riuscita'
-        : 'Errore di rete';
-      setError(msg);
+    } catch {
+      cameraAlerts.bookNotRecognized();
     } finally {
-      setLoading(false);
+      setLoadingPhase('idle');
     }
   };
 
-  const executeTake = async () => {
-    if (!point || !book) return;
-    if (availability && !availability.available) {
-      setError('Questo libro non Ã¨ disponibile in questo punto');
-      return;
-    }
-    setLoading(true);
-    setError('');
-    try {
-      const { data } = await api.post<{ message: string }>('/transactions/take', {
-        pointId: point.id,
-        isbn: book.isbn,
-      });
-      setMessage(data.message);
-      setPhase('done');
-    } catch (err) {
-      const msg = axios.isAxiosError(err)
-        ? (err.response?.data as { error?: string })?.error ?? 'Operazione non riuscita'
-        : 'Errore di rete';
-      setError(msg);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const persistPreviewSnapshot = useCallback(() => {
+    if (!book) return;
+    saveSnapshot({
+      phase: 'book_preview',
+      flowMode,
+      book,
+      point,
+      bookProvider,
+    });
+  }, [book, flowMode, point, bookProvider, saveSnapshot]);
 
-  const handleTake = () => {
-    if (availability && !availability.available) {
-      setError('Non puoi prenderlo qui â€” il libro non risulta in questo punto.');
+  const openBookFromPreview = useCallback(() => {
+    if (!book) return;
+    persistPreviewSnapshot();
+    onClose();
+    navigate(`/libro/${book.id}`, { state: { fromCamera: true } });
+  }, [book, persistPreviewSnapshot, onClose, navigate]);
+
+  const startCornerDonatePick = useCallback(() => {
+    setLeaveQrOpen(false);
+    setCornerDonatePick(true);
+    setPhase('scan_point_qr');
+    void loadPointsCatalog();
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setUserPos({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          setGpsDenied(false);
+        },
+        () => setGpsDenied(true),
+        { enableHighAccuracy: true, timeout: 10000 },
+      );
+    } else {
+      setGpsDenied(true);
+    }
+  }, [loadPointsCatalog]);
+
+  function handleDonaClick() {
+    if (!book) return;
+    if (point?.type === 'corner_free') {
+      void executeLeave();
       return;
     }
-    void executeTake();
-  };
+    setLeaveQrOpen(true);
+  }
+
+  async function goToPointPage(token: string) {
+    const { data } = await api.get<{ point: PointInfo }>(`/points/qr/${token}`);
+    navigate(`/punto/${data.point.id}`);
+    reset();
+    onClose();
+  }
 
   const changeBook = () => {
     setBook(null);
     setPoint(null);
     setAvailability(null);
     setPointPickMode('idle');
+    setCornerDonatePick(false);
+    setLeaveQrOpen(false);
     setPhase('scan_detect');
-    setError('');
   };
 
   const changePoint = () => {
@@ -686,8 +693,11 @@ export default function CameraFlow({ open, onClose, contextPointId, leaveBackpac
     setAvailability(null);
     setPointPickMode('idle');
     setPhase('scan_point_qr');
-    setError('');
   };
+
+  const handleCameraError = useCallback((msg: string) => {
+    toast.warning(msg);
+  }, []);
 
   useEffect(() => {
     if (!open || !import.meta.env.DEV) return;
@@ -709,63 +719,80 @@ export default function CameraFlow({ open, onClose, contextPointId, leaveBackpac
     );
   }, [open, phase, flowMode, userPos, gpsDenied, nearKm]);
 
+  const gpsSnackbarKeyRef = useRef('');
+  useEffect(() => {
+    if (!open || phase !== 'confirm_near' || !point) return;
+    const needsQr =
+      !userPos || gpsDenied || (nearKm != null && nearKm > NEAR_POINT_KM);
+    if (!needsQr) {
+      gpsSnackbarKeyRef.current = '';
+      return;
+    }
+    const key = `${point.id}-${phase}`;
+    if (gpsSnackbarKeyRef.current === key) return;
+    gpsSnackbarKeyRef.current = key;
+    toast.warning(
+      'GPS non attivo o sei lontano: inquadra il cartello Libery per lasciare il libro qui.',
+      { duration: 6000 },
+    );
+  }, [open, phase, point, userPos, gpsDenied, nearKm]);
+
   if (!open) return null;
 
   const leaveHere = flowMode === 'leave_here';
   const leaveBackpack = flowMode === 'leave_backpack';
   const isLeaveOnly = leaveHere || leaveBackpack;
-  const currentStep = stepIndex(phase === 'done' ? 'actions' : phase, flowMode);
   const gpsAtPoint = nearKm != null && nearKm <= NEAR_POINT_KM;
   const needsQrOnly =
     !userPos || gpsDenied || (nearKm != null && nearKm > NEAR_POINT_KM);
   const showCompactScanner =
-    phase === 'scan_detect' ||
-    phase === 'scan_isbn' ||
-    phase === 'scan_point_qr' ||
-    (phase === 'confirm_near' && needsQrOnly);
+    // Scanner ISBN attivo durante lo step di verifica libro fisico (pickup)
+    managerIsbnStep ||
+    (!managerPreview &&
+      (phase === 'scan_detect' ||
+        phase === 'scan_isbn' ||
+        phase === 'book_preview' ||
+        phase === 'scan_point_qr' ||
+        (phase === 'confirm_near' && needsQrOnly)));
   const scanMode =
-    phase === 'scan_isbn'
+    managerIsbnStep
       ? 'isbn'
-      : phase === 'scan_point_qr' || (phase === 'confirm_near' && needsQrOnly)
-        ? 'qr'
-        : 'auto';
-  const stepLabels = leaveBackpack
-    ? [
-        { key: 'scan_point_qr' as const, label: 'Punto' },
-        { key: 'scan_isbn' as const, label: 'ISBN' },
-        { key: 'actions' as const, label: 'Conferma' },
-      ]
-    : leaveHere
-      ? [
-          { key: 'confirm_near' as const, label: 'Qui' },
-          { key: 'scan_isbn' as const, label: 'Libro' },
-          { key: 'actions' as const, label: 'Conferma' },
-        ]
-      : STEPS;
+      : phase === 'scan_isbn' || phase === 'book_preview'
+        ? 'isbn'
+        : phase === 'scan_point_qr' || (phase === 'confirm_near' && needsQrOnly)
+          ? 'qr'
+          : 'auto';
   const flowTitle = leaveBackpack
     ? 'Lascia dal zaino'
-    : leaveHere
-      ? 'Lascio un libro'
-      : 'Inquadra';
+    : leaveHere && point
+      ? point.type === 'corner_free'
+        ? 'Dona nel corner'
+        : 'Dona al punto'
+      : 'Fotocamera Libery';
 
   return (
-    <div className="camera-flow camera-flow--app">
-      <header className="camera-flow-app-header">
-        <button type="button" className="btn-close" onClick={handleClose} aria-label="Chiudi" />
+    <div className="camera-flow camera-flow--app camera-flow--material">
+      <header className="camera-flow-app-header libery-material-surface">
+        <MdIconButton type="button" color="standard" aria-label="Chiudi" onClick={handleClose}>
+          <MdIcon>close</MdIcon>
+        </MdIconButton>
         <span className="camera-flow-app-title">{flowTitle}</span>
+        <div className="camera-flow-app-header__spacer" aria-hidden />
+        <CameraFlowInfoMenu
+          pointType={point?.type}
+          variant={leaveHere || leaveBackpack ? 'leave' : 'default'}
+          phaseHint={
+            showCompactScanner
+              ? phase === 'scan_detect'
+                ? 'Inquadra il codice a barre del libro o il cartello Libery (QR).'
+                : scanMode === 'isbn'
+                  ? "Inquadra il codice a barre dell'ISBN sul dorso del libro."
+                  : 'Inquadra il cartello Libery con il QR.'
+              : null
+          }
+          scanHint={scanHint || null}
+        />
       </header>
-
-      <nav className="camera-flow-steps" aria-label="Passaggi">
-        {stepLabels.map((s, i) => (
-          <span
-            key={s.key}
-            className={`camera-flow-step ${i < currentStep ? 'done' : ''} ${i === currentStep ? 'active' : ''}`}
-          >
-            <span className="camera-flow-step-num">{i + 1}</span>
-            {s.label}
-          </span>
-        ))}
-      </nav>
 
       {showCompactScanner && (
         <div
@@ -775,21 +802,107 @@ export default function CameraFlow({ open, onClose, contextPointId, leaveBackpac
               : ''
           }`}
         >
-          <BarcodeScanner active={showCompactScanner} mode={scanMode} onScan={handleScan} onError={setError} />
-          <p className="camera-flow-hint">
-            {scanHint ||
-              (phase === 'scan_detect'
-                ? 'Inquadra'
-                : scanMode === 'isbn'
-                  ? "Inquadra il codice a barre dell'ISBN"
-                  : 'Inquadra il cartello Libery')}
-          </p>
+          <BarcodeScanner
+            active={showCompactScanner}
+            paused={loadingPhase !== 'idle'}
+            mode={scanMode}
+            showScanOverlay={false}
+            onScan={handleScan}
+            onError={handleCameraError}
+          />
         </div>
       )}
 
+      <CameraFlowScanFeedback loadingPhase={loadingPhase} />
+
       <div className="camera-flow-body">
-        {loading && <p className="camera-flow-status">Elaborazione…</p>}
-        {error && <p className="camera-flow-error">{error}</p>}
+        {managerPreview && !loading && (
+          <section className="camera-flow-card manager-scan-preview">
+            <div className="d-flex gap-3 align-items-start mb-3">
+              <BookCoverThumb
+                title={managerPreview.book.title}
+                isbn={managerPreview.book.isbn}
+                coverPath={managerPreview.book.coverPath}
+                coverSize="list"
+              />
+              <div className="min-w-0">
+                <p className="camera-flow-book-title mb-1">{managerPreview.book.title}</p>
+                {managerPreview.book.author ? (
+                  <p className="camera-flow-book-author mb-1">{managerPreview.book.author}</p>
+                ) : null}
+                <p className="small text-muted mb-0">
+                  {managerPreview.action === 'leave' ? 'Donazione' : 'Ritiro'} ?{' '}
+                  {managerPreview.user.displayName?.trim() || managerPreview.user.email.split('@')[0]}
+                </p>
+              </div>
+            </div>
+
+            {/* Step ISBN per ritiro: scansiona il libro fisico per confermare */}
+            {managerPreview.action === 'pickup' && !managerIsbnOk && (
+              <div className="manager-isbn-step">
+                <p className="manager-isbn-step__label">
+                  <MdIcon>barcode_scanner</MdIcon>
+                  Inquadra il codice a barre del libro da consegnare
+                </p>
+              </div>
+            )}
+
+            {managerPreview.action === 'pickup' && managerIsbnOk && (
+              <p className="manager-isbn-step manager-isbn-step--ok">
+                <MdIcon>check_circle</MdIcon>
+                Libro confermato ? ISBN verificato
+              </p>
+            )}
+
+            <div className="d-flex gap-2 mt-3">
+              <LiberyButton
+                type="button"
+                color="outlined"
+                className="flex-fill"
+                onClick={() => {
+                  setManagerPreview(null);
+                  setManagerIsbnStep(false);
+                  setManagerIsbnOk(false);
+                }}
+              >
+                Annulla
+              </LiberyButton>
+              <LiberyButton
+                type="button"
+                color="filled"
+                className="flex-fill"
+                disabled={
+                  !managerPreview.checks.canConfirm ||
+                  managerConfirmBusy ||
+                  (managerPreview.action === 'pickup' && !managerIsbnOk)
+                }
+                onClick={() => void handleManagerConfirm()}
+              >
+                {managerPreview.action === 'pickup' && !managerIsbnOk
+                  ? 'Scansiona libro?'
+                  : managerPreview.confirmLabel}
+              </LiberyButton>
+            </div>
+          </section>
+        )}
+
+        {phase === 'book_preview' && book && !leaveQrOpen && !cornerDonatePick ? (
+          <section className="camera-flow-book-preview-section" aria-label="Libro riconosciuto">
+            <CameraBookPreview book={book} onOpenBook={openBookFromPreview} />
+            <div className="libery-book-sheet-actions libery-book-sheet-actions--dona">
+              <LiberyButton
+                type="button"
+                color="outlined"
+                size="small"
+                className="libery-book-sheet-actions__btn"
+                disabled={loading}
+                onClick={handleDonaClick}
+              >
+                Dona
+              </LiberyButton>
+            </div>
+          </section>
+        ) : null}
 
         {phase === 'confirm_near' && point && !showCompactScanner && (
           <section className="camera-flow-card camera-flow-confirm-near">
@@ -801,13 +914,14 @@ export default function CameraFlow({ open, onClose, contextPointId, leaveBackpac
             )}
             <div className="d-flex flex-column gap-2">
               {gpsAtPoint && (
-              <button type="button" className="btn btn-libery w-100" onClick={() => setPhase('scan_isbn')}>
-                SÃ¬, lascio un libro
-              </button>
+              <LiberyButton type="button" color="filled" className="w-100" onClick={() => setPhase('scan_isbn')}>
+                S?, lascio un libro qui
+              </LiberyButton>
               )}
-              <button
+              <LiberyButton
                 type="button"
-                className="btn btn-libery-soft w-100"
+                color="tonal"
+                className="w-100"
                 onClick={() => {
                   setFlowMode('full');
                   setPoint(null);
@@ -816,17 +930,8 @@ export default function CameraFlow({ open, onClose, contextPointId, leaveBackpac
                 }}
               >
                 No, sono in un altro punto
-              </button>
+              </LiberyButton>
             </div>
-          </section>
-        )}
-
-        {phase === 'confirm_near' && point && showCompactScanner && needsQrOnly && (
-          <section className="camera-flow-card mb-2">
-            <p className="small text-muted mb-0">
-              GPS non attivo o sei lontano: <strong>inquadrare il cartello Libery</strong> Ã¨ l&apos;unico
-              modo per lasciare un libro qui.
-            </p>
           </section>
         )}
 
@@ -835,90 +940,41 @@ export default function CameraFlow({ open, onClose, contextPointId, leaveBackpac
             <label className="camera-flow-manual-label" htmlFor="manual-isbn">
               Oppure digita l&apos;ISBN
             </label>
-            <div className="camera-flow-manual-row">
-              <input
+            <div className="camera-flow-manual-row align-items-start">
+              <MdTextField
                 id="manual-isbn"
+                label="ISBN"
                 type="text"
                 inputMode="numeric"
-                autoComplete="off"
-                className="camera-flow-manual-input"
+                autocomplete="off"
                 placeholder="9788806211778"
                 value={manualIsbn}
-                onChange={(e) => setManualIsbn(e.target.value)}
-                onKeyDown={(e) => {
+                disabled={loading}
+                style={{ flex: '1 1 auto', minWidth: 0 }}
+                onInput={(e: Event) =>
+                  setManualIsbn((e.currentTarget as HTMLElement & { value: string }).value)
+                }
+                onKeyDown={(e: KeyboardEvent) => {
                   if (e.key === 'Enter') submitManualIsbn();
                 }}
-                disabled={loading}
               />
-              <button
+              <LiberyButton
                 type="button"
-                className="btn btn-libery btn-sm"
+                color="filled"
+                size="small"
+                style={{ alignSelf: 'center' }}
                 onClick={submitManualIsbn}
                 disabled={loading || !manualIsbn.trim()}
               >
                 OK
-              </button>
+              </LiberyButton>
             </div>
           </section>
         )}
 
-        {phase === 'book_preview' && book && (
-          <>
-            <CameraBookPreview
-              book={book}
-              provider={bookProvider}
-              pointName={point?.name}
-              availabilityMessage={availability?.message ?? null}
-              availabilityOk={availability?.available}
-            />
-            <div className="camera-flow-actions mt-3">
-              {point ? (
-                <button type="button" className="btn btn-libery w-100" onClick={() => setPhase('actions')}>
-                  Cosa vuoi fare?
-                </button>
-              ) : (
-                <>
-                  <p className="small text-muted mb-2">
-                    Per prendere o lasciare serve un punto Libery: GPS entro {nearPointRadiusLabel()} o
-                    cartello QR.
-                  </p>
-                  <button
-                    type="button"
-                    className="btn btn-libery w-100"
-                    onClick={() => setPhase('scan_point_qr')}
-                  >
-                    Inquadra cartello Libery
-                  </button>
-                  {userPos && nearbyPoints.length > 0 && (
-                    <ul className="list-unstyled mb-0 camera-flow-point-list mt-2">
-                      {nearbyPoints.map(({ point: p, km }) => (
-                        <li key={p.id}>
-                          <button
-                            type="button"
-                            className="camera-flow-point-btn"
-                            disabled={loading}
-                            onClick={() => void selectPoint(toPointInfo(p), p)}
-                          >
-                            <span className="camera-flow-point-name">{p.name}</span>
-                            <span className="camera-flow-point-dist">{formatDistanceKm(km)}</span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </>
-              )}
-              <button type="button" className="btn btn-libery-soft w-100 mt-2" onClick={changeBook}>
-                Altro libro
-              </button>
-            </div>
-          </>
-        )}
-
-        {phase === 'scan_point_qr' && (
+        {phase === 'scan_point_qr' && leaveBackpack && (
           <p className="small text-muted mb-2">
-            Inquadra il <strong>cartello Libery</strong> nel punto.
-            {book ? ' Poi scegli se prendi o lasci.' : ' Poi inquadra il libro da lasciare.'}
+            Inquadra il <strong>cartello Libery</strong> nel punto, poi il codice a barre del libro.
           </p>
         )}
 
@@ -929,22 +985,27 @@ export default function CameraFlow({ open, onClose, contextPointId, leaveBackpac
           </p>
         )}
 
-        {phase === 'scan_point_qr' && leaveBackpack && (
-          <section className="camera-flow-section">
-            <h3 className="camera-flow-section-title">Dove lasci il libro?</h3>
+        {(phase === 'scan_point_qr' && (leaveBackpack || pickingCornerForDonate)) && (
+          <section className="camera-flow-section camera-flow-section--corner-pick">
+            <h3 className="camera-flow-section-title">
+              {pickingCornerForDonate ? 'Dona in un Corner Free' : 'Dove lasci il libro?'}
+            </h3>
             <p className="camera-flow-section-lead">
-              Inquadra il cartello o scegli un punto vicino (GPS entro {nearPointRadiusLabel()}).
+              {pickingCornerForDonate
+                ? `Inquadra il QR sul cartello del corner, oppure seleziona un corner entro ${nearPointRadiusLabel()}.`
+                : `Inquadra il cartello o scegli un punto vicino (GPS entro ${nearPointRadiusLabel()}).`}
             </p>
 
-            {userPos && nearbyPoints.length > 0 && (
+            {userPos && (pickingCornerForDonate ? nearbyCorners : nearbyPoints).length > 0 && (
               <div className="camera-flow-nearby mb-3">
                 <p className="small fw-semibold text-muted mb-2">Vicino a te</p>
                 <ul className="list-unstyled mb-0 camera-flow-point-list">
-                  {nearbyPoints.map(({ point: p, km }) => (
+                  {(pickingCornerForDonate ? nearbyCorners : nearbyPoints).map(({ point: p, km }) => (
                     <li key={p.id}>
-                      <button
+                      <LiberyButton
                         type="button"
-                        className="camera-flow-point-btn"
+                        color="elevated"
+                        className="camera-flow-point-btn w-100"
                         disabled={loading}
                         onClick={() => void selectPoint(toPointInfo(p), p)}
                       >
@@ -953,7 +1014,7 @@ export default function CameraFlow({ open, onClose, contextPointId, leaveBackpac
                           <span className="camera-flow-point-meta">{formatPointLine(toPointInfo(p))}</span>
                         )}
                         <span className="camera-flow-point-dist">{formatDistanceKm(km)}</span>
-                      </button>
+                      </LiberyButton>
                     </li>
                   ))}
                 </ul>
@@ -966,9 +1027,12 @@ export default function CameraFlow({ open, onClose, contextPointId, leaveBackpac
               </p>
             )}
 
-            {userPos && nearbyPoints.length === 0 && (
+            {userPos &&
+              (pickingCornerForDonate ? nearbyCorners : nearbyPoints).length === 0 && (
               <p className="small text-muted mb-3">
-                Nessun punto Libery entro {nearPointRadiusLabel()} — avvicinati o usa il cartello QR.
+                {pickingCornerForDonate
+                  ? `Nessun Corner Free entro ${nearPointRadiusLabel()} ? avvicinati o inquadra il QR sul cartello.`
+                  : `Nessun punto Libery entro ${nearPointRadiusLabel()} ? avvicinati o usa il cartello QR.`}
               </p>
             )}
           </section>
@@ -979,18 +1043,16 @@ export default function CameraFlow({ open, onClose, contextPointId, leaveBackpac
             <section className="camera-flow-card camera-flow-card--point">
               <div className="d-flex justify-content-between align-items-start gap-2">
                 <div>
-                  <span className="badge text-bg-light mb-2">
-                    {POINT_TYPE_LABELS[point.type as PointType] ?? point.type}
-                  </span>
+                  <PointTypeBadge type={point.type as PointType} />
                   <h3 className="h6 fw-bold mb-1">{point.name}</h3>
                   {formatPointLine(point) && (
                     <p className="small text-muted mb-0">{formatPointLine(point)}</p>
                   )}
                 </div>
                 {!isLeaveOnly && (
-                  <button type="button" className="btn btn-sm btn-libery-soft" onClick={changePoint}>
+                  <LiberyButton type="button" color="tonal" size="small" onClick={changePoint}>
                     Cambia
-                  </button>
+                  </LiberyButton>
                 )}
               </div>
             </section>
@@ -1012,41 +1074,58 @@ export default function CameraFlow({ open, onClose, contextPointId, leaveBackpac
                       Posizione verificata ({formatDistanceKm(nearKm)}).
                     </p>
                   )}
-                  <button
+                  <LiberyButton
                     type="button"
-                    className="btn btn-libery w-100"
+                    color="filled"
+                    className="w-100"
                     disabled={loading}
-                    onClick={() => void executeLeave()}
+                    onClick={() => {
+                      if (point?.type === 'corner_free') void executeLeave();
+                      else handleDonaClick();
+                    }}
                   >
-                    Lascio il libro qui
-                  </button>
+                    {point?.type === 'corner_free' ? 'Dona nel corner' : 'Genera QR per addetto'}
+                  </LiberyButton>
                 </>
-              ) : (
+              ) : point?.type === 'corner_free' ? (
                 <>
-                  <p className="camera-flow-section-title mb-2">Cosa vuoi fare?</p>
-                  <div className="d-flex gap-2">
-                    <button
+                  <CameraBookPreview book={book} onOpenBook={openBookFromPreview} />
+                  <section className="camera-flow-card camera-flow-corner-confirm mt-3">
+                    <p className="camera-flow-section-title mb-1">
+                      Sei al <strong>{point.name}</strong>
+                    </p>
+                    <p className="small text-muted mb-3">
+                      Corner Free ? lascia il libro qui, nessun addetto necessario.
+                    </p>
+                    <LiberyButton
                       type="button"
-                      className="btn btn-libery flex-fill"
-                      disabled={loading || (availability !== null && !availability.available)}
-                      onClick={handleTake}
-                      title={
-                        availability && !availability.available
-                          ? 'Libro non disponibile qui'
-                          : undefined
-                      }
-                    >
-                      Prendo
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-libery flex-fill"
+                      color="filled"
+                      className="w-100"
                       disabled={loading}
                       onClick={() => void executeLeave()}
                     >
-                      Lascio
-                    </button>
-                  </div>
+                      Dona qui
+                    </LiberyButton>
+                    <LiberyButton type="button" color="text" className="w-100 mt-2" onClick={changeBook}>
+                      Altro libro
+                    </LiberyButton>
+                  </section>
+                </>
+              ) : (
+                <>
+                  <CameraBookPreview book={book} onOpenBook={openBookFromPreview} />
+                    <div className="libery-book-sheet-actions libery-book-sheet-actions--dona mt-3">
+                      <LiberyButton
+                        type="button"
+                        color="outlined"
+                        size="small"
+                        className="libery-book-sheet-actions__btn"
+                        disabled={loading}
+                        onClick={handleDonaClick}
+                      >
+                        Dona
+                      </LiberyButton>
+                    </div>
                 </>
               )}
             </div>
@@ -1056,12 +1135,31 @@ export default function CameraFlow({ open, onClose, contextPointId, leaveBackpac
         {phase === 'done' && (
           <section className="camera-flow-card camera-flow-card--done">
             <p className="mb-3">{message}</p>
-            <button type="button" className="btn btn-libery w-100" onClick={handleClose}>
+            <LiberyButton type="button" color="filled" className="w-100" onClick={handleClose}>
               Fatto
-            </button>
+            </LiberyButton>
           </section>
         )}
       </div>
+
+      {book && (
+        <UserLeaveQrSheet
+          open={leaveQrOpen}
+          onOpenChange={setLeaveQrOpen}
+          book={book}
+          pointName={
+            point && point.type !== 'corner_free' ? point.name : null
+          }
+          showCornerOption={!point || point.type !== 'corner_free'}
+          onAtCorner={startCornerDonatePick}
+          onVerified={() => {
+            setLeaveQrOpen(false);
+            setCornerDonatePick(false);
+            setMessage('Libro consegnato. Grazie per averlo messo in circolo!');
+            setPhase('done');
+          }}
+        />
+      )}
     </div>
   );
 }

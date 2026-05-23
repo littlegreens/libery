@@ -10,6 +10,7 @@
     "start": "node dist/index.js",
     "start:worker": "node dist/worker.js",
     "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "db:generate": "prisma generate",
@@ -18,6 +19,9 @@
     "seed:demo-points": "tsx src/scripts/seed-demo-points.ts",
     "seed:test-data": "tsx src/scripts/seed-test-data.ts",
     "seed:italia": "tsx src/scripts/seed-italia.ts",
+    "seed:lazio": "tsx src/scripts/seed-lazio.ts",
+    "assign:manager:anzio": "tsx src/scripts/assign-manager-anzio.ts",
+    "assign:managers": "tsx src/scripts/assign-managers.ts",
     "enrich:covers": "tsx src/scripts/enrich-book-covers.ts",
     "clear:books": "tsx src/scripts/clear-books.ts"
   },
@@ -31,6 +35,8 @@
     "helmet": "^8.1.0",
     "ioredis": "^5.10.1",
     "jsonwebtoken": "^9.0.2",
+    "multer": "^2.1.1",
+    "nodemailer": "^8.0.7",
     "zod": "^3.25.28"
   },
   "devDependencies": {
@@ -38,7 +44,9 @@
     "@types/cors": "^2.8.18",
     "@types/express": "^5.0.2",
     "@types/jsonwebtoken": "^9.0.9",
+    "@types/multer": "^2.1.0",
     "@types/node": "^22.15.21",
+    "@types/nodemailer": "^8.0.0",
     "prisma": "^6.8.2",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3"

@@ -1,28 +1,29 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BrandLogo from '@/components/BrandLogo';
+import { LiberyButton } from '@/lib/material/md-react';
 
-/**
- * Splash screen iniziale: logo + bottone "Entra" che porta alla landing /home.
- * È volutamente semplice e non dipende dall'AppShell (è la prima cosa che vede l'utente).
- */
+/** Splash iniziale (`/`): logo + Entra verso `/home`. Nessuno scroll. */
 export default function HomePage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    document.body.style.overflow = '';
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
   }, []);
 
   return (
-    <div className="home-page">
-      <div className="home-logo-wrap">
+    <div className="home-splash">
+      <div className="home-splash__logo">
         <BrandLogo className="home-logo-large" />
       </div>
-
-      <div className="home-actions">
-        <button type="button" className="home-entra-btn" onClick={() => navigate('/home')}>
+      <div className="home-splash__actions">
+        <LiberyButton type="button" variant="secondary" onClick={() => navigate('/home')}>
           Entra
-        </button>
+        </LiberyButton>
       </div>
     </div>
   );

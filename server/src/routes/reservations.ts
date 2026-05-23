@@ -1,6 +1,12 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
+import {
+  computeSlots,
+  countActiveReservations,
+  getUserSlotSummary,
+  slotsFree,
+} from '../lib/bookSlots.js';
 import { authenticate, type AuthRequest } from '../middleware/auth.js';
 import { scheduleReservationExpire } from '../lib/queue.js';
 
@@ -30,6 +36,7 @@ router.get('/mine', async (req: AuthRequest, res, next) => {
       },
       orderBy: { expiresAt: 'asc' },
     });
+    const slotSummary = await getUserSlotSummary(userId);
     res.json({
       reservations: rows.map((r) => ({
         id: r.id,
@@ -37,6 +44,13 @@ router.get('/mine', async (req: AuthRequest, res, next) => {
         book: r.pointBook.book,
         point: r.pointBook.point,
       })),
+      slots: slotSummary ?? {
+        libriOggi: 0,
+        libriExtra: 0,
+        libriTotali: 0,
+        activeReservations: 0,
+        slotsFree: 0,
+      },
     });
   } catch (e) {
     next(e);
@@ -52,6 +66,32 @@ router.post('/', async (req: AuthRequest, res, next) => {
   try {
     const { pointId, bookId } = reserveSchema.parse(req.body);
     const userId = req.user!.sub;
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { libriOggiUsed: true, libriExtra: true },
+    });
+    if (!user) {
+      res.status(404).json({ error: 'Utente non trovato' });
+      return;
+    }
+    const slots = computeSlots(user.libriOggiUsed, user.libriExtra);
+    const activeReservations = await countActiveReservations(userId);
+    const free = slotsFree(slots.libriTotali, activeReservations);
+    if (slots.libriTotali < 1) {
+      res.status(403).json({
+        error:
+          'Non hai slot libri disponibili: non puoi prenotare se non potresti ritirare il volume in biblioteca.',
+      });
+      return;
+    }
+    if (free < 1) {
+      res.status(403).json({
+        error:
+          'Hai già impegnato tutti i tuoi slot con prenotazioni attive. Ritira o annulla una prenotazione.',
+      });
+      return;
+    }
 
     const point = await prisma.point.findUnique({ where: { id: pointId } });
     if (!point || point.status !== 'approved') {

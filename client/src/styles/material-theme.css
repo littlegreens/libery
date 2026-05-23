@@ -1,0 +1,180 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600;700;800&display=swap');
+
+/**
+ * Tema Material 3 (material-esm/material) per Libery.
+ * Palette: bianco / nero / grigi, rosso e verde pastello, blu per avvisi informativi.
+ *
+ * I componenti `md-*` leggono le variabili --md-sys-color-*.
+ * Token aggiuntivi --libery-* per React, CSS legacy e web component custom.
+ */
+
+:root {
+  color-scheme: light;
+
+  /**
+   * Altezza hint per layout (sticky top bar M3 compat).
+   * Usa `calc` nei toast / overlay quando serve margine sicuro.
+   */
+  --libery-app-bar-row-height: 56px;
+
+  /** Elevazioni MD3 (livelli 0–5, ombre a due strati sintetizzate per il web). */
+  --md-sys-elevation-level0: none;
+  --md-sys-elevation-level1:
+    0px 1px 2px 1px rgb(0 0 0 / 0.2),
+    0px 1px 3px 1px rgb(0 0 0 / 0.06);
+  --md-sys-elevation-level2:
+    0px 1px 2px 0px rgb(0 0 0 / 0.28),
+    0px 2px 6px 2px rgb(0 0 0 / 0.12);
+  --md-sys-elevation-level3:
+    0px 1px 3px 0px rgb(0 0 0 / 0.26),
+    0px 4px 8px 3px rgb(0 0 0 / 0.14);
+  --md-sys-elevation-level4:
+    0px 2px 3px 0px rgb(0 0 0 / 0.24),
+    0px 6px 10px 4px rgb(0 0 0 / 0.13);
+  --md-sys-elevation-level5:
+    0px 4px 4px 0px rgb(0 0 0 / 0.22),
+    0px 8px 12px 6px rgb(0 0 0 / 0.13);
+
+  /* —— Libertà tema app (uso generico: alert custom, mixin SCSS eventualmente) —— */
+  --libery-md-white: #ffffff;
+  --libery-md-black: #141414;
+  --libery-md-gray-light: #f2f2f2;
+  --libery-md-gray-mid: #9a9a9a;
+  --libery-md-gray-dark: #3a3a3a;
+  --libery-md-red-pastel: #ebb1b1;
+  --libery-md-green-pastel: #a8d4b8;
+  --libery-md-blue-alert: #8fb8e8;
+
+  /* Successo / errore / info semantic (banner custom, snackbar variant, ecc.) */
+  --libery-alert-info-bg: color-mix(in srgb, var(--libery-md-blue-alert) 38%, white);
+  --libery-alert-info-ink: #1e3a5f;
+  --libery-alert-success-bg: color-mix(in srgb, var(--libery-md-green-pastel) 45%, white);
+  --libery-alert-success-ink: #1a2e22;
+  --libery-alert-error-bg: color-mix(in srgb, var(--libery-md-red-pastel) 42%, white);
+  --libery-alert-error-ink: #3b1818;
+
+  /* —— Material 3 system tokens (light) —— */
+  --md-sys-color-primary: var(--libery-md-gray-dark);
+  --md-sys-color-on-primary: var(--libery-md-white);
+  --md-sys-color-primary-container: var(--libery-md-gray-light);
+  --md-sys-color-on-primary-container: var(--libery-md-black);
+
+  /* Secondario = blu pastello (avvisi / messaggi informativi negli UI Material) */
+  --md-sys-color-secondary: #6b9bd4;
+  --md-sys-color-on-secondary: var(--libery-md-white);
+  --md-sys-color-secondary-container: var(--libery-alert-info-bg);
+  --md-sys-color-on-secondary-container: var(--libery-alert-info-ink);
+
+  /* Terziario = verde pastello (stati positivi dove il design system espone tertiary) */
+  --md-sys-color-tertiary: #6a9e7e;
+  --md-sys-color-on-tertiary: var(--libery-md-white);
+  --md-sys-color-tertiary-container: var(--libery-alert-success-bg);
+  --md-sys-color-on-tertiary-container: var(--libery-alert-success-ink);
+
+  --md-sys-color-error: #c75a5a;
+  --md-sys-color-on-error: var(--libery-md-white);
+  --md-sys-color-error-container: var(--libery-md-red-pastel);
+  --md-sys-color-on-error-container: var(--libery-alert-error-ink);
+
+  --md-sys-color-background: #ffffff;
+  --md-sys-color-on-background: var(--libery-md-black);
+
+  /** Tutte superfici chiare = bianco — profondità solo con elevation (`box-shadow`). */
+  --md-sys-color-surface: #ffffff;
+  --md-sys-color-on-surface: var(--libery-md-black);
+  --md-sys-color-surface-variant: #ffffff;
+  --md-sys-color-on-surface-variant: var(--libery-md-gray-dark);
+
+  --md-sys-color-surface-container-low: #ffffff;
+  --md-sys-color-surface-container: #ffffff;
+  --md-sys-color-surface-container-high: #ffffff;
+  --md-sys-color-surface-container-highest: #ffffff;
+
+  --md-sys-color-inverse-surface: var(--libery-md-gray-dark);
+  --md-sys-color-inverse-on-surface: var(--libery-md-gray-light);
+  --md-sys-color-inverse-primary: #c6c6c6;
+
+  --md-sys-color-outline: #c4c4c4;
+  --md-sys-color-outline-variant: #dedede;
+
+  --md-sys-color-shadow: rgba(0, 0, 0, 0.18);
+  --md-sys-color-scrim: rgba(0, 0, 0, 0.4);
+
+  --md-ref-typeface-brand: 'Roboto', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --md-ref-typeface-plain: 'Roboto', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* Scala titoli (subset) per card / liste allineate a MD3 */
+  --md-sys-typescale-title-medium-size: 1rem;
+  --md-sys-typescale-title-medium-line-height: 1.5rem;
+  --md-sys-typescale-title-medium-weight: 500;
+  --md-sys-typescale-body-medium-size: 0.875rem;
+  --md-sys-typescale-body-medium-line-height: 1.25rem;
+  --md-sys-typescale-body-medium-weight: 400;
+  --md-sys-typescale-label-medium-size: 0.75rem;
+
+  /** Forme micro-componenti Libery (chip statici, allineati a MD corner small). */
+  --libery-chip-shape: 8px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --libery-alert-info-bg: color-mix(in srgb, var(--libery-md-blue-alert) 22%, #1a1a1a);
+    --libery-alert-info-ink: #c8d9f2;
+    --libery-alert-success-bg: color-mix(in srgb, var(--libery-md-green-pastel) 18%, #1a1a1a);
+    --libery-alert-success-ink: #d0ead9;
+    --libery-alert-error-bg: color-mix(in srgb, var(--libery-md-red-pastel) 20%, #1a1a1a);
+    --libery-alert-error-ink: #f0c4c4;
+
+    --md-sys-color-primary: #e0e0e0;
+    --md-sys-color-on-primary: #141414;
+    --md-sys-color-primary-container: #3a3a3a;
+    --md-sys-color-on-primary-container: #f2f2f2;
+
+    --md-sys-color-secondary: #8fb8e8;
+    --md-sys-color-on-secondary: #141414;
+    --md-sys-color-secondary-container: #2a3f5c;
+    --md-sys-color-on-secondary-container: #dbe8fb;
+
+    --md-sys-color-tertiary: #a8d4b8;
+    --md-sys-color-on-tertiary: #141414;
+    --md-sys-color-tertiary-container: #254030;
+    --md-sys-color-on-tertiary-container: #d8f0e0;
+
+    --md-sys-color-error: #f0a0a0;
+    --md-sys-color-on-error: #141414;
+    --md-sys-color-error-container: #5c2a2a;
+    --md-sys-color-on-error-container: #fde0e0;
+
+    --md-sys-color-background: #141414;
+    --md-sys-color-on-background: #f2f2f2;
+
+    --md-sys-color-surface: #1e1e1e;
+    --md-sys-color-on-surface: #f2f2f2;
+    --md-sys-color-surface-variant: #2c2c2c;
+    --md-sys-color-on-surface-variant: #c8c8c8;
+
+    --md-sys-color-surface-container-low: #181818;
+    --md-sys-color-surface-container: #1e1e1e;
+    --md-sys-color-surface-container-high: #252525;
+    --md-sys-color-surface-container-highest: #2e2e2e;
+
+    --md-sys-color-inverse-surface: #f2f2f2;
+    --md-sys-color-inverse-on-surface: #2a2a2a;
+    --md-sys-color-inverse-primary: #4a4a4a;
+
+    --md-sys-color-outline: #6a6a6a;
+    --md-sys-color-outline-variant: #404040;
+
+    --md-sys-color-shadow: rgba(0, 0, 0, 0.45);
+    --md-sys-color-scrim: rgba(0, 0, 0, 0.55);
+  }
+}
+
+html {
+  font-family: var(--md-ref-typeface-plain);
+  background: var(--md-sys-color-background);
+  color: var(--md-sys-color-on-background);
+}

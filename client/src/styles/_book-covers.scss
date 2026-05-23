@@ -1,0 +1,102 @@
+// Copertine libro: formato verticale 2:3, ombra leggera, niente crop quadrato.
+
+.book-cover-thumb {
+  flex-shrink: 0;
+  display: block;
+  width: auto;
+  max-width: 100%;
+  border-radius: var(--md-sys-shape-corner-extra-small, 4px);
+  object-fit: cover;
+  object-position: center top;
+  background: var(--md-sys-color-surface-container-high, #ece6f0);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+
+  &--placeholder {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(165deg, #f3f0e8 0%, #ddd8c8 100%);
+    color: #6b6451;
+    overflow: hidden;
+    box-shadow: none;
+    border: 1px solid color-mix(in srgb, var(--md-sys-color-outline-variant, #cac4d0) 70%, transparent);
+  }
+
+  &__icon {
+    width: 42%;
+    height: auto;
+    opacity: 0.45;
+  }
+
+  &__initial {
+    position: absolute;
+    bottom: 10%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: clamp(0.5rem, 28%, 0.95rem);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: #4a4434;
+    background: rgba(255, 255, 255, 0.78);
+    padding: 0.1em 0.4em;
+    border-radius: 999px;
+    line-height: 1.35;
+  }
+}
+
+.libery-book-cover-cell {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 2px;
+  width: 3rem;
+  flex-shrink: 0;
+
+  .book-cover-thumb {
+    width: 3rem;
+    height: 4.5rem;
+    min-width: 3rem;
+    min-height: 4.5rem;
+  }
+}
+
+.libery-book-cover-badge-host {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+
+  md-badge {
+    position: absolute;
+    right: -4px;
+    bottom: -4px;
+    z-index: 1;
+  }
+}
+
+.libery-book-leading-spacer {
+  width: calc(3rem + 0.75rem);
+  flex-shrink: 0;
+}
+
+.libery-book-cover-extra {
+  max-width: 5.5rem;
+  text-align: center;
+}
+
+.libery-search-hit-cover {
+  display: flex;
+  align-items: flex-start;
+  padding-top: 2px;
+  width: 3rem;
+  flex-shrink: 0;
+
+  .book-cover-thumb {
+    width: 3rem;
+    height: 4.5rem;
+    min-width: 3rem;
+    min-height: 4.5rem;
+  }
+}

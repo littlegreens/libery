@@ -11,6 +11,7 @@
     "dev": "concurrently -n client,server -c cyan,magenta \"npm run dev -w client\" \"npm run dev -w server\"",
     "dev:client": "npm run dev -w client",
     "dev:server": "npm run dev -w server",
+    "tunnel": "npx --yes cloudflared tunnel --url http://127.0.0.1:5173",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
     "db:migrate": "npm run db:migrate -w server",
@@ -20,7 +21,9 @@
     "seed:demo-points": "npm run seed:demo-points -w server",
     "seed:test-data": "npm run seed:test-data -w server",
     "seed:all": "npm run seed:users && npm run seed:demo-points && npm run seed:test-data",
-    "enrich:covers": "npm run enrich:covers -w server"
+    "enrich:covers": "npm run enrich:covers -w server",
+    "build": "npm run build -w server && npm run build -w client",
+    "start:prod": "npm run start -w server"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

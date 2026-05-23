@@ -1,11 +1,9 @@
 import type { Book } from '@prisma/client';
+import { isWeakTitle } from './bookMetadataQuality.js';
 import type { GoogleBookPayload } from './googleBooks.js';
+import { htmlToPlainText } from './htmlText.js';
 import { isValidCoverUrl, pickCoverUrlSync } from './coverPick.js';
 import { metadataScore, snapshotFromDb, snapshotFromPayload, type FieldSnapshot } from './bookResolveLog.js';
-
-function isWeakTitle(title: string): boolean {
-  return /^ISBN\s*\d{10,13}$/i.test(title.trim());
-}
 
 function pickString(db: string | null, ext: string | null | undefined, mode: 'prefer_ext_if_db_empty' | 'prefer_longer'): string | null {
   const a = db?.trim() || null;
@@ -45,7 +43,8 @@ export function planDbUpdateFromExternal(
   const title = pickString(existing.title, external.title, 'prefer_ext_if_db_empty') ?? existing.title;
   const author = pickString(existing.author, external.author, 'prefer_ext_if_db_empty');
   const publisher = pickString(existing.publisher, external.publisher, 'prefer_ext_if_db_empty');
-  const description = pickString(existing.description, external.description, 'prefer_longer');
+  const descriptionRaw = pickString(existing.description, external.description, 'prefer_longer');
+  const description = descriptionRaw ? htmlToPlainText(descriptionRaw) || null : null;
   const genre = pickString(existing.genre, external.genre, 'prefer_ext_if_db_empty');
   const language = pickString(existing.language, external.language, 'prefer_ext_if_db_empty');
   const coverPath = isValidCoverUrl(existing.coverPath)

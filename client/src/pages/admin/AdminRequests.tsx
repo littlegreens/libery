@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
+import { LiberyButton, MdCard, MdTextField } from '@/lib/material/md-react';
 
 type RequestRow = {
   id: string;
@@ -61,67 +62,80 @@ export default function AdminRequests() {
     <div>
       <h1 className="h4 fw-bold mb-4">Richieste nuovi punti</h1>
 
-      <div className="mb-3 d-flex gap-2">
+      <div className="mb-3 d-flex flex-wrap gap-2">
         {(['pending', 'approved', 'rejected'] as const).map((s) => (
-          <button
+          <LiberyButton
             key={s}
             type="button"
-            className={`btn btn-sm ${filter === s ? 'btn-libery' : 'btn-outline-secondary'}`}
+            size="small"
+            color={filter === s ? 'filled' : 'outlined'}
             onClick={() => setFilter(s)}
           >
             {s === 'pending' ? 'In attesa' : s === 'approved' ? 'Approvate' : 'Rifiutate'}
-          </button>
+          </LiberyButton>
         ))}
       </div>
 
-      {feedback && <div className="alert alert-info py-2 small">{feedback}</div>}
+      {feedback && <div className="small libery-inline-alert libery-inline-alert-info mb-3">{feedback}</div>}
 
       {requests.length === 0 ? (
         <p className="text-muted">Nessuna richiesta in questa categoria.</p>
       ) : (
         <div className="d-flex flex-column gap-3">
           {requests.map((r) => (
-            <div key={r.id} className="card border-0 shadow-sm">
-              <div className="card-body">
-                <div className="d-flex justify-content-between flex-wrap gap-2 mb-2">
-                  <div>
-                    <h2 className="h6 fw-bold mb-1">{r.name}</h2>
-                    <p className="small text-muted mb-0">
-                      {r.pointType} · {r.city ?? '—'} · {new Date(r.createdAt).toLocaleDateString('it-IT')}
-                    </p>
-                  </div>
-                  <span className="badge text-bg-light align-self-start">{r.status}</span>
+            <MdCard key={r.id} type="elevated" style={{ padding: '1rem' }}>
+              <div className="d-flex justify-content-between flex-wrap gap-2 mb-2">
+                <div>
+                  <h2 className="h6 fw-bold mb-1">{r.name}</h2>
+                  <p className="small text-muted mb-0">
+                    {r.pointType} · {r.city ?? '—'} · {new Date(r.createdAt).toLocaleDateString('it-IT')}
+                  </p>
                 </div>
-                <p className="small mb-2">
-                  Richiedente: {r.requester.displayName ?? r.requester.email}
-                  {r.contactEmail && ` · Contatto: ${r.contactEmail}`}
-                </p>
-                {r.status === 'pending' && (
-                  <>
-                    <input
-                      className="form-control form-control-sm mb-2"
-                      placeholder="Email gestore (se diversa dal contatto)"
-                      value={note[`${r.id}-email`] ?? ''}
-                      onChange={(e) => setNote({ ...note, [`${r.id}-email`]: e.target.value })}
-                    />
-                    <input
-                      className="form-control form-control-sm mb-2"
-                      placeholder="Nota admin (obbligatoria per rifiuto)"
-                      value={note[r.id] ?? ''}
-                      onChange={(e) => setNote({ ...note, [r.id]: e.target.value })}
-                    />
-                    <div className="d-flex gap-2">
-                      <button type="button" className="btn btn-sm btn-success" onClick={() => approve(r.id)}>
-                        Approva (OK)
-                      </button>
-                      <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => reject(r.id)}>
-                        Rifiuta
-                      </button>
-                    </div>
-                  </>
-                )}
+                <span className="libery-badge align-self-start">{r.status}</span>
               </div>
-            </div>
+              <p className="small mb-2">
+                Richiedente: {r.requester.displayName ?? r.requester.email}
+                {r.contactEmail && ` · Contatto: ${r.contactEmail}`}
+              </p>
+              {r.status === 'pending' && (
+                <>
+                  <MdTextField
+                    className="mb-2 mt-2"
+                    style={{ width: '100%' }}
+                    label="Email gestore (se diversa dal contatto)"
+                    type="email"
+                    value={note[`${r.id}-email`] ?? ''}
+                    onInput={(e: Event) =>
+                      setNote({
+                        ...note,
+                        [`${r.id}-email`]: (e.currentTarget as HTMLElement & { value: string }).value,
+                      })
+                    }
+                  />
+                  <MdTextField
+                    className="mb-2"
+                    style={{ width: '100%' }}
+                    label="Nota admin (obbligatoria per rifiuto)"
+                    type="text"
+                    value={note[r.id] ?? ''}
+                    onInput={(e: Event) =>
+                      setNote({
+                        ...note,
+                        [r.id]: (e.currentTarget as HTMLElement & { value: string }).value,
+                      })
+                    }
+                  />
+                  <div className="d-flex gap-2 flex-wrap mt-2">
+                    <LiberyButton type="button" color="filled" size="small" onClick={() => approve(r.id)}>
+                      Approva (OK)
+                    </LiberyButton>
+                    <LiberyButton type="button" color="outlined" size="small" onClick={() => reject(r.id)}>
+                      Rifiuta
+                    </LiberyButton>
+                  </div>
+                </>
+              )}
+            </MdCard>
           ))}
         </div>
       )}

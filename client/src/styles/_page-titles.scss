@@ -1,0 +1,40 @@
+// Titoli pagina nel corpo — Roboto, titoli in bold (no maiuscolo forzato)
+
+.libery-page-title {
+  margin: 0 0 0.35rem;
+  font-family: inherit;
+  font-size: 1.375rem;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: 0;
+  color: var(--md-sys-color-on-background, #1a1a1a);
+
+  &--detail {
+    font-size: 1.125rem;
+    line-height: 1.3;
+  }
+}
+
+.libery-page-section-title {
+  margin: 0 0 0.5rem;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--md-sys-color-on-surface, #1a1a1a);
+}
+
+.libery-section-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.libery-contextual-top-bar--actions-only {
+  .libery-contextual-top-bar__spacer {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+}

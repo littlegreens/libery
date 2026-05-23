@@ -20,6 +20,20 @@ const accounts = [
     note: 'Utente normale: mappa, zaino, camera Prendo/Lascio',
   },
   {
+    email: 'test@test.it',
+    password: '123456789',
+    displayName: 'Test Uno',
+    role: 'user' as const,
+    note: 'Utente di test',
+  },
+  {
+    email: 'test01@test.it',
+    password: '123456789',
+    displayName: 'Test Due',
+    role: 'user' as const,
+    note: 'Utente di test 2',
+  },
+  {
     email: 'gab.verdini@gmail.com',
     password: 'G4br13l3$!',
     displayName: 'Gabriele',
@@ -61,6 +75,13 @@ const accounts = [
     role: 'point_manager' as const,
     note: 'Responsabile biblioteca Genova',
   },
+  {
+    email: 'gestore.anzio@libery.test',
+    password: DEMO_PASSWORD,
+    displayName: 'Gestore Anzio',
+    role: 'point_manager' as const,
+    note: 'Responsabile Biblioteca Multimediale Chris Cappell Anzio',
+  },
 ];
 
 async function main() {
@@ -76,12 +97,14 @@ async function main() {
         displayName: acc.displayName,
         role: acc.role,
         isActive: true,
+        emailVerifiedAt: new Date(),
       },
       update: {
         passwordHash,
         displayName: acc.displayName,
         role: acc.role,
         isActive: true,
+        emailVerifiedAt: new Date(),
       },
     });
 
@@ -93,6 +116,7 @@ async function main() {
 
   console.log('Gestore biblioteca (dopo seed:test-data + login su /gestore):');
   console.log('  biblio.gestore@libery.test / LiberyDemo2026!');
+  console.log('  gestore.anzio@libery.test / LiberyDemo2026!  ← Biblioteca Cappell Anzio');
   console.log('\nQR punti seed (dopo seed:test-data):');
   console.log('  seed-bib-roma, seed-bib-torino, seed-bib-bologna, seed-bib-genova');
   console.log('\nCorner demo (dopo seed:demo-points):');

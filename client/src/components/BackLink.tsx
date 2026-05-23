@@ -1,23 +1,6 @@
+import { useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-
-function ChevronLeftIcon() {
-  return (
-    <svg
-      className="book-page-back-icon"
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M15 18l-6-6 6-6" />
-    </svg>
-  );
-}
+import { MdIcon } from '@/lib/material/md-react';
 
 /**
  * Back link contestuale:
@@ -63,34 +46,54 @@ export function labelForPath(pathname: string): BackTarget {
 
 export function useBackTarget(fallback: BackTarget = DEFAULT_TARGET): BackTarget {
   const location = useLocation();
-  const state = location.state as
-    | { from?: BackTarget | string | undefined }
-    | null
-    | undefined;
-  const fromState = state?.from;
-  if (typeof fromState === 'object' && fromState && fromState.to && fromState.label) {
-    return fromState;
-  }
-  if (typeof fromState === 'string' && fromState.length > 0) {
-    return labelForPath(fromState);
-  }
-  return fallback;
+  return useMemo(() => {
+    const state = location.state as
+      | { from?: BackTarget | string | undefined }
+      | null
+      | undefined;
+    const fromState = state?.from;
+    if (typeof fromState === 'object' && fromState && fromState.to && fromState.label) {
+      return { to: fromState.to, label: fromState.label };
+    }
+    if (typeof fromState === 'string' && fromState.length > 0) {
+      return labelForPath(fromState);
+    }
+    return fallback;
+  }, [location.pathname, location.key, fallback.to, fallback.label]);
 }
 
 export default function BackLink({
   fallback,
-  className = 'book-page-back',
+  className,
   overrideLabel,
+  variant = 'text',
 }: {
   fallback?: BackTarget;
   className?: string;
   overrideLabel?: string;
+  /** `icon` = pulsante navigazione compatto tipico delle top bar M3 (solo freccia). */
+  variant?: 'text' | 'icon';
 }) {
   const target = useBackTarget(fallback);
+  const label = overrideLabel ?? target.label;
+
+  if (variant === 'icon') {
+    return (
+      <Link
+        to={target.to}
+        className={['book-page-back book-page-back--icon', className].filter(Boolean).join(' ')}
+        replace
+        aria-label={label}
+      >
+        <MdIcon className="book-page-back-icon">arrow_back</MdIcon>
+      </Link>
+    );
+  }
+
   return (
-    <Link to={target.to} className={className} replace>
-      <ChevronLeftIcon />
-      {overrideLabel ?? target.label}
+    <Link to={target.to} className={['book-page-back', className].filter(Boolean).join(' ')} replace>
+      <MdIcon className="book-page-back-icon">arrow_back</MdIcon>
+      {label}
     </Link>
   );
 }

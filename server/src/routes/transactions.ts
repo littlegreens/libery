@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma.js';
 import { authenticate, type AuthRequest } from '../middleware/auth.js';
 import { normalizeIsbn } from '../lib/isbn.js';
 import { resolveBookByIsbn } from '../services/bookCatalog.js';
+import { computeSlots, countActiveReservations, slotsFree } from '../lib/bookSlots.js';
 import { triggerAeroplaniniCheck } from '../lib/queue.js';
 
 const router = Router();
@@ -14,18 +15,6 @@ const bodySchema = z.object({
   pointId: z.string().uuid(),
   isbn: z.string().min(10).max(20),
 });
-
-const SLOT_DEFAULT_DAILY = 1;
-
-/**
- * Slot Libri disponibili oggi per l'utente.
- * libri_oggi = max(0, SLOT_DEFAULT_DAILY - libri_oggi_used)
- * totali = libri_oggi + libri_extra
- */
-function computeSlots(libriOggiUsed: number, libriExtra: number) {
-  const libriOggi = Math.max(0, SLOT_DEFAULT_DAILY - libriOggiUsed);
-  return { libriOggi, libriExtra, libriTotali: libriOggi + libriExtra };
-}
 
 /**
  * Prendi un libro da Corner Free (no controllo addetto).
@@ -67,9 +56,14 @@ router.post('/take', async (req: AuthRequest, res, next) => {
       return;
     }
     const slots = computeSlots(user.libriOggiUsed, user.libriExtra);
-    if (slots.libriTotali < 1) {
+    const activeReservations = await countActiveReservations(userId);
+    const free = slotsFree(slots.libriTotali, activeReservations);
+    if (free < 1) {
       res.status(403).json({
-        error: 'Hai esaurito i libri di oggi. Torna domani o dona un libro per averne uno extra.',
+        error:
+          activeReservations > 0
+            ? 'Hai già impegnato tutti i tuoi slot con prenotazioni attive. Ritira o annulla una prenotazione.'
+            : 'Hai esaurito i libri di oggi. Torna domani o dona un libro per averne uno extra.',
       });
       return;
     }

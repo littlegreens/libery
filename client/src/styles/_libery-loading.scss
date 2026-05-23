@@ -1,0 +1,63 @@
+// Indicatore attesa MD3 (icona progress_activity)
+
+.libery-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  box-sizing: border-box;
+}
+
+.libery-loading__icon {
+  font-size: 2rem;
+  width: 2rem;
+  height: 2rem;
+  color: var(--md-sys-color-primary, #{$libery-accent});
+  animation: libery-spin 1.2s linear infinite;
+}
+
+.libery-loading__label {
+  font-family: 'Roboto', $font-family-sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  line-height: 1.35;
+  color: var(--md-sys-color-on-surface-variant, #{$libery-ink-soft});
+  text-align: center;
+}
+
+.libery-loading--page {
+  min-height: 12rem;
+  padding: 2rem 1rem;
+
+  .libery-loading__icon {
+    padding: 0.85rem;
+    border-radius: 50%;
+    background: var(--md-sys-color-surface-container-high, #ece6f0);
+    box-sizing: content-box;
+  }
+}
+
+.libery-loading--inline {
+  flex-direction: row;
+  gap: 0.45rem;
+  padding: 0.35rem 0;
+  min-height: 0;
+
+  .libery-loading__icon {
+    font-size: 1.25rem;
+    width: 1.25rem;
+    height: 1.25rem;
+    padding: 0;
+    background: none;
+    box-shadow: none;
+  }
+}
+
+.libery-loading--overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: color-mix(in srgb, var(--md-sys-color-surface, #fff) 72%, transparent);
+  backdrop-filter: blur(2px);
+}

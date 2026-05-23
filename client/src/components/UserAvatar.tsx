@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import LiberyNumChip from '@/components/LiberyNumChip';
 import type { AuthUser } from '@/stores/authStore';
 
 function initials(user: AuthUser): string {
@@ -15,21 +16,31 @@ function initials(user: AuthUser): string {
 
 type Props = {
   user: AuthUser;
+  id?: string;
   onClick?: () => void;
   className?: string;
+  /** Badge slot liberi (es. «3» o «9+») in basso a destra. */
+  slotBadge?: string | null;
 };
 
-export default function UserAvatar({ user, onClick, className = '' }: Props) {
+export default function UserAvatar({ user, id, onClick, className = '', slotBadge }: Props) {
   const [imgFailed, setImgFailed] = useState(false);
   const showImg = user.avatarUrl && !imgFailed;
+  const badge = slotBadge?.trim();
+  const badgeEmpty = badge === '0';
 
   return (
     <button
       type="button"
-      className={`user-avatar ${className}`.trim()}
+      id={id}
+      className={`user-avatar ${badge ? 'user-avatar--badged' : ''} ${className}`.trim()}
       onClick={onClick}
-      aria-label={`Profilo: ${user.displayName ?? user.email}`}
-      title={user.displayName ?? user.email}
+      aria-label={`Profilo: ${user.displayName ?? user.email}${badge ? `, ${badge} libri disponibili` : ''}`}
+      title={
+        badge
+          ? `${user.displayName ?? user.email} · ${badge} da prendere`
+          : (user.displayName ?? user.email)
+      }
     >
       {showImg ? (
         <img
@@ -41,6 +52,18 @@ export default function UserAvatar({ user, onClick, className = '' }: Props) {
       ) : (
         <span>{initials(user)}</span>
       )}
+      {badge ? (
+        <LiberyNumChip
+          value={badge}
+          className={[
+            'libery-num-chip--on-avatar',
+            badgeEmpty ? 'libery-num-chip--muted' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          aria-hidden
+        />
+      ) : null}
     </button>
   );
 }

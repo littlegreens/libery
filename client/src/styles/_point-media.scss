@@ -1,0 +1,50 @@
+// Thumbnail punto: quadrato arrotondato (mappa, liste «dove trovarlo»)
+
+.libery-point-media {
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--md-sys-color-surface-container-highest, #e6e0e9);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  &--type {
+    border: none;
+  }
+}
+
+.libery-point-media__icon {
+  width: 1.5rem !important;
+  height: 1.5rem !important;
+  object-fit: contain;
+  filter: brightness(0) invert(1);
+  opacity: 0.96;
+  flex-shrink: 0;
+}
+
+.libery-point-media-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.libery-num-chip--on-point-thumb {
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  z-index: 2;
+  pointer-events: none;
+  min-width: 0.95rem;
+  height: 0.95rem;
+  padding: 0 0.22rem;
+  font-size: 0.5625rem;
+}

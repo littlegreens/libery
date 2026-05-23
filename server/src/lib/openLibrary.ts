@@ -1,3 +1,4 @@
+import { isbnsEquivalent } from './bookMetadataQuality.js';
 import type { GoogleBookPayload } from './googleBooks.js';
 import { normalizeIsbn } from './isbn.js';
 
@@ -26,7 +27,17 @@ type OpenLibrarySearchDoc = {
   subject?: string[];
   cover_i?: number;
   language?: string[];
+  isbn?: string[];
 };
+
+function searchDocMatchesIsbn(doc: OpenLibrarySearchDoc, isbn: string): boolean {
+  const list = doc.isbn ?? [];
+  if (list.length === 0) return false;
+  for (const raw of list) {
+    if (isbnsEquivalent(String(raw), isbn)) return true;
+  }
+  return false;
+}
 
 function mapEntry(entry: OpenLibraryEntry, isbn: string): GoogleBookPayload | null {
   if (!entry.title) return null;
@@ -152,7 +163,8 @@ async function fetchFromSearchApi(isbn: string): Promise<GoogleBookPayload | nul
 
   const data = (await res.json()) as { docs?: OpenLibrarySearchDoc[] };
   const doc = data.docs?.[0];
-  return doc ? mapSearchDoc(doc, isbn) : null;
+  if (!doc || !searchDocMatchesIsbn(doc, isbn)) return null;
+  return mapSearchDoc(doc, isbn);
 }
 
 export async function fetchBookFromOpenLibrary(rawIsbn: string): Promise<GoogleBookPayload | null> {

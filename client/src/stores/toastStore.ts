@@ -7,7 +7,7 @@ export type ToastItem = {
   variant: ToastVariant;
   title?: string;
   message: string;
-  /** Auto-dismiss in ms. Default: 3000. Set 0 per persistente. */
+  /** Auto-dismiss in ms. Default: ~4s (snackbar). Imposta 0 per messaggio fisso fino alla chiusura manuale. */
   duration: number;
 };
 
@@ -18,9 +18,10 @@ type ToastState = {
   clear: () => void;
 };
 
-const DEFAULT_DURATION = 3000;
+/** Durata tipo snackbar MD (chiusura gestita da `ToastContainer`). */
+const DEFAULT_DURATION = 4000;
 
-export const useToastStore = create<ToastState>((set, get) => ({
+export const useToastStore = create<ToastState>((set) => ({
   toasts: [],
 
   push: (t) => {
@@ -33,12 +34,6 @@ export const useToastStore = create<ToastState>((set, get) => ({
       duration: t.duration ?? DEFAULT_DURATION,
     };
     set((s) => ({ toasts: [...s.toasts, item] }));
-
-    if (item.duration > 0) {
-      setTimeout(() => {
-        get().dismiss(id);
-      }, item.duration);
-    }
     return id;
   },
 

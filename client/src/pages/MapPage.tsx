@@ -1,18 +1,19 @@
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
 import MapClusterLayer from '@/components/MapClusterLayer';
-import MapPinZoomScale from '@/components/MapPinZoomScale';
-import BookSheet from '@/components/BookSheet';
+import MapLocateBar from '@/components/MapLocateBar';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { api } from '@/lib/api';
+import { LiberyButton, MdIcon } from '@/lib/material/md-react';
 import { userLocationIcon } from '@/lib/mapIcons';
+import { LIBERY_MAP_TILE } from '@/lib/mapTiles';
 import { useUserPosition } from '@/stores/locationStore';
-import type { BookSummary } from '@/types/book';
 import type { MapPoint } from '@/types/point';
 
 const ITALY_CENTER: L.LatLngExpression = [42.5, 12.5];
+const USER_MAP_ZOOM = 14;
 
 function MapRefBridge({ onMap }: { onMap: (map: L.Map) => void }) {
   const map = useMap();
@@ -64,11 +65,6 @@ export default function MapPage() {
   const [points, setPoints] = useState<MapPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [bookQuery, setBookQuery] = useState('');
-  const [selectedBook, setSelectedBook] = useState<BookSummary | null>(null);
-  const [otherBooks, setOtherBooks] = useState<BookSummary[]>([]);
-  const [matchingPointIds, setMatchingPointIds] = useState<Set<string> | null>(null);
-  const [searchLoading, setSearchLoading] = useState(false);
   const { pos: userPos } = useUserPosition();
   const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
 
@@ -84,40 +80,6 @@ export default function MapPage() {
       setError('Server non raggiungibile — avvia API su :3001');
     } finally {
       setLoading(false);
-    }
-  }, []);
-
-  const searchBooks = useCallback(async (query: string) => {
-    const trimmed = query.trim();
-    if (!trimmed) {
-      setMatchingPointIds(null);
-      setSelectedBook(null);
-      setOtherBooks([]);
-      return;
-    }
-
-    setSearchLoading(true);
-    try {
-      const { data } = await api.get<{ books: BookSummary[] }>('/books/search', {
-        params: { q: trimmed },
-      });
-
-      const ids = new Set<string>();
-      for (const book of data.books) {
-        for (const slot of book.availability) {
-          ids.add(slot.pointId);
-        }
-      }
-
-      setMatchingPointIds(ids);
-      setSelectedBook(data.books[0] ?? null);
-      setOtherBooks(data.books.slice(1, 4));
-    } catch {
-      setMatchingPointIds(new Set());
-      setSelectedBook(null);
-      setOtherBooks([]);
-    } finally {
-      setSearchLoading(false);
     }
   }, []);
 
@@ -155,125 +117,35 @@ export default function MapPage() {
     return () => window.removeEventListener('pageshow', onPageShow);
   }, []);
 
-  useEffect(() => {
-    if (!bookQuery.trim()) {
-      setMatchingPointIds(null);
-      setSelectedBook(null);
-      setOtherBooks([]);
-      return;
-    }
-    const timer = window.setTimeout(() => {
-      void searchBooks(bookQuery);
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [bookQuery, searchBooks]);
-
-  function handleSearchSubmit(e: FormEvent) {
-    e.preventDefault();
-    void searchBooks(bookQuery);
-  }
-
-  function clearSearch() {
-    setBookQuery('');
-    setMatchingPointIds(null);
-    setSelectedBook(null);
-    setOtherBooks([]);
-  }
-
-  function goToPoint(pointId: string) {
-    const p = points.find((x) => x.id === pointId);
-    if (p?.latitude != null && p.longitude != null && mapInstance) {
-      mapInstance.flyTo([p.latitude, p.longitude], 15, { duration: 0.7 });
+  function locateMe() {
+    if (userPos && mapInstance) {
+      mapInstance.flyTo([userPos.lat, userPos.lng], USER_MAP_ZOOM, { duration: 0.8 });
     }
   }
 
-  const visiblePoints = useMemo(() => {
-    const geo = points.filter((p) => p.latitude != null && p.longitude != null);
-    if (matchingPointIds === null) return geo;
-    return geo.filter((p) => matchingPointIds.has(p.id));
-  }, [points, matchingPointIds]);
+  const visiblePoints = useMemo(
+    () => points.filter((p) => p.latitude != null && p.longitude != null),
+    [points],
+  );
 
   return (
     <div className="map-page">
       <div ref={mapWrapRef} className="map-wrap position-relative">
-        {!loading && !error && (
-          <div className="map-search-bar">
-            <form className="map-search-form" onSubmit={handleSearchSubmit}>
-              <input
-                type="search"
-                className="map-search-input"
-                placeholder="Cerca un libro (titolo, autore, ISBN)…"
-                value={bookQuery}
-                onChange={(e) => setBookQuery(e.target.value)}
-                aria-label="Cerca libro sulla mappa"
-              />
-            </form>
-            <button
-              type="button"
-              className="map-locate-btn"
-              title="Centra sulla mia posizione"
-              disabled={!userPos || !mapInstance}
-              onClick={() => userPos && mapInstance?.flyTo([userPos.lat, userPos.lng], 14, { duration: 0.8 })}
-              aria-label="Centra sulla mia posizione"
-            >
-              ◎
-            </button>
-          </div>
+        {!error && (
+          <MapLocateBar
+            userPos={userPos}
+            mapReady={Boolean(mapInstance)}
+            onLocate={locateMe}
+          />
         )}
 
-        {searchLoading && bookQuery.trim() && !loading && !error && (
-          <p className="map-search-status">Ricerca…</p>
-        )}
-
-        {selectedBook && !searchLoading && !loading && !error && (
-          <div className="map-book-sheet-wrap">
-            <BookSheet
-              book={selectedBook}
-              points={points}
-              userPos={userPos}
-              onClose={clearSearch}
-              onGoToPoint={goToPoint}
-            />
-            {otherBooks.length > 0 && (
-              <div className="map-other-books">
-                <p className="small text-muted mb-1">Altri risultati</p>
-                <ul className="list-unstyled mb-0">
-                  {otherBooks.map((b) => (
-                    <li key={b.id}>
-                      <button
-                        type="button"
-                        className="map-other-book-btn"
-                        onClick={() => {
-                          const prev = selectedBook;
-                          setSelectedBook(b);
-                          if (prev) {
-                            setOtherBooks((list) =>
-                              [prev, ...list.filter((x) => x.id !== b.id)].slice(0, 3),
-                            );
-                          }
-                          const ids = new Set<string>();
-                          for (const slot of b.availability) ids.add(slot.pointId);
-                          setMatchingPointIds(ids);
-                        }}
-                      >
-                        {b.title}
-                        {b.author && <span className="text-muted"> — {b.author}</span>}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        )}
-
-        {loading && <div className="map-overlay-message">Caricamento…</div>}
         {error && (
-          <div className="map-overlay-message text-danger">
-            {error}
-            <button type="button" className="btn btn-sm btn-libery mt-2 d-block mx-auto" onClick={loadPoints}>
+          <div className="map-overlay-message map-overlay-message--error">
+            <MdIcon className="map-overlay-message__icon">cloud_off</MdIcon>
+            <p className="mb-2">{error}</p>
+            <LiberyButton type="button" color="outlined" size="small" onClick={loadPoints}>
               Riprova
-            </button>
+            </LiberyButton>
           </div>
         )}
 
@@ -285,13 +157,13 @@ export default function MapPage() {
             className="map-leaflet"
             scrollWheelZoom
             zoomControl={false}
+            attributionControl={false}
           >
             <MapInvalidate />
-            <MapPinZoomScale />
             <MapRefBridge onMap={setMapInstance} />
             <TileLayer
-              attribution='&copy; OpenStreetMap'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              url={LIBERY_MAP_TILE.url}
+              attribution={LIBERY_MAP_TILE.attribution}
             />
             {visiblePoints.length > 0 && <FitBounds points={visiblePoints} />}
             <MapClusterLayer points={visiblePoints} />
@@ -304,7 +176,10 @@ export default function MapPage() {
         )}
 
         {!mapReady && !loading && !error && (
-          <div className="map-overlay-message">Preparazione mappa…</div>
+          <div className="map-overlay-message map-overlay-message--prep" role="status">
+            <MdIcon className="map-overlay-message__icon map-overlay-message__icon--spin">progress_activity</MdIcon>
+            <span>Preparazione mappa…</span>
+          </div>
         )}
       </div>
     </div>

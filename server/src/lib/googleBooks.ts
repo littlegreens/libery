@@ -1,3 +1,5 @@
+import { isbnsEquivalent } from './bookMetadataQuality.js';
+import { htmlToPlainText } from './htmlText.js';
 import { normalizeIsbn } from './isbn.js';
 
 export type GoogleBookPayload = {
@@ -35,6 +37,18 @@ type GoogleResponse = {
   totalItems?: number;
   items?: GoogleVolume[];
 };
+
+/** Il volume Google deve riportare lo stesso ISBN richiesto (no “primo risultato” a caso). */
+function volumeIndustryIsbnMatches(volume: GoogleVolume, requestedIsbn: string): boolean {
+  const req = normalizeIsbn(requestedIsbn);
+  if (!req) return false;
+  const ids = volume.volumeInfo?.industryIdentifiers ?? [];
+  for (const id of ids) {
+    if (!id.identifier?.trim()) continue;
+    if (isbnsEquivalent(id.identifier, req)) return true;
+  }
+  return false;
+}
 
 function parseYear(publishedDate?: string): number | null {
   if (!publishedDate) return null;
@@ -82,7 +96,9 @@ function mapVolume(volume: GoogleVolume, fallbackIsbn: string): GoogleBookPayloa
     publisher: info.publisher ?? null,
     year: parseYear(info.publishedDate),
     edition: null,
-    description: info.description?.slice(0, 4000) ?? null,
+    description: info.description
+      ? htmlToPlainText(info.description).slice(0, 4000) || null
+      : null,
     language: info.language ?? null,
     pages: info.pageCount ?? null,
     genre: info.categories?.[0] ?? null,
@@ -119,27 +135,39 @@ export async function fetchBookFromGoogleBooks(rawIsbn: string): Promise<GoogleB
   const data = (await res.json()) as GoogleResponse;
   if (!data.items?.length) return null;
 
-  const hit = data.items[0]!;
-  // La ricerca per ISBN spesso omette `description`; il GET sul volume la include.
-  let volume: GoogleVolume = hit;
-  if (hit.id) {
-    try {
-      const detailUrl = `https://www.googleapis.com/books/v1/volumes/${encodeURIComponent(hit.id)}?key=${encodeURIComponent(apiKey)}`;
-      const detailRes = await fetch(detailUrl, {
-        headers: { Accept: 'application/json' },
-        signal: AbortSignal.timeout(12_000),
-      });
-      if (detailRes.ok) {
-        volume = (await detailRes.json()) as GoogleVolume;
-      }
-    } catch {
-      /* usa risultato ricerca */
+  for (const hit of data.items) {
+    if (!volumeIndustryIsbnMatches(hit, isbn)) {
+      continue;
     }
+
+    // La ricerca per ISBN spesso omette `description`; il GET sul volume la include.
+    let volume: GoogleVolume = hit;
+    if (hit.id) {
+      try {
+        const detailUrl = `https://www.googleapis.com/books/v1/volumes/${encodeURIComponent(hit.id)}?key=${encodeURIComponent(apiKey)}`;
+        const detailRes = await fetch(detailUrl, {
+          headers: { Accept: 'application/json' },
+          signal: AbortSignal.timeout(12_000),
+        });
+        if (detailRes.ok) {
+          const detailed = (await detailRes.json()) as GoogleVolume;
+          if (volumeIndustryIsbnMatches(detailed, isbn)) {
+            volume = detailed;
+          }
+        }
+      } catch {
+        /* usa risultato ricerca */
+      }
+    }
+
+    const mapped = mapVolume(volume, isbn);
+    if (!mapped) continue;
+    if (!mapped.coverUrl) {
+      console.warn(`[isbn:${isbn}] Google Books: volume senza imageLinks`);
+    }
+    return mapped;
   }
 
-  const mapped = mapVolume(volume, isbn);
-  if (mapped && !mapped.coverUrl) {
-    console.warn(`[isbn:${isbn}] Google Books: volume senza imageLinks`);
-  }
-  return mapped;
+  console.warn(`[isbn:${isbn}] Google Books: nessun volume con ISBN corrispondente`);
+  return null;
 }

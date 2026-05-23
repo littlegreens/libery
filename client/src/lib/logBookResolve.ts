@@ -19,11 +19,11 @@ type Payload = {
     title: string;
     author: string | null;
     isbn: string;
-    description: string | null;
-    coverPath: string | null;
-    publisher: string | null;
-    year: number | null;
-    genre: string | null;
+    description?: string | null;
+    coverPath?: string | null;
+    publisher?: string | null;
+    year?: number | null;
+    genre?: string | null;
   };
   provider?: string;
   fromCache?: boolean;

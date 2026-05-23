@@ -90,6 +90,7 @@ router.post('/:id/approve', async (req: AuthRequest, res, next) => {
           passwordHash: await hashPassword(tempPassword),
           displayName: pointRequest.name,
           role: 'point_manager',
+          emailVerifiedAt: new Date(),
         },
       });
     } else if (manager.role === 'user') {

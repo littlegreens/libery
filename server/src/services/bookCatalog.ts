@@ -16,7 +16,12 @@ import {
   snapshotFromDb,
 } from '../lib/bookResolveLog.js';
 import { bookNeedsExternalEnrichment, coverNeedsProbe } from '../lib/bookEnrichment.js';
-import { isValidCoverUrl, pickCoverUrlSync, probeCoverUrl } from '../lib/coverPick.js';
+import {
+  coverPathForCatalogCreate,
+  isAcceptableCatalogMetadata,
+  isTrustedDbBook,
+} from '../lib/bookMetadataQuality.js';
+import { isValidCoverUrl, probeCoverUrl } from '../lib/coverPick.js';
 import { normalizeIsbn } from '../lib/isbn.js';
 
 export type BookDto = {
@@ -101,7 +106,7 @@ export async function resolveBookByIsbn(rawIsbn: string): Promise<ResolveBookRes
     console.log('[libro]   DB: libro non presente');
   }
 
-  if (existing && !bookNeedsExternalEnrichment(existing)) {
+  if (existing && isTrustedDbBook(existing) && !bookNeedsExternalEnrichment(existing)) {
     let coverOk = true;
     if (coverNeedsProbe(existing.coverPath)) {
       coverOk = Boolean(existing.coverPath && (await probeCoverUrl(existing.coverPath)));
@@ -137,7 +142,7 @@ export async function resolveBookByIsbn(rawIsbn: string): Promise<ResolveBookRes
   };
 
   if (!external) {
-    if (existing) {
+    if (existing && isTrustedDbBook(existing)) {
       logResponse(isbn, 'db (fonti esterne vuote)', snapshotFromDb(existing));
       return {
         ok: true,
@@ -156,14 +161,15 @@ export async function resolveBookByIsbn(rawIsbn: string): Promise<ResolveBookRes
     return { ok: false, attempts };
   }
 
+  const ext = external;
   const fromGoogle = provider === 'google';
   const dbSource: Book['source'] = fromGoogle ? 'google_books' : 'libery_db';
 
   if (existing) {
     const shouldUpdate =
-      externalRicherThanDb(existing, external) ||
-      (!isValidCoverUrl(existing.coverPath) && isValidCoverUrl(external.coverUrl)) ||
-      (external.description?.trim().length ?? 0) > (existing.description?.trim().length ?? 0);
+      externalRicherThanDb(existing, ext) ||
+      (!isValidCoverUrl(existing.coverPath) && isValidCoverUrl(ext.coverUrl)) ||
+      (ext.description?.trim().length ?? 0) > (existing.description?.trim().length ?? 0);
     if (!shouldUpdate) {
       logMergePlan(isbn, [], provider ?? 'esterno');
       logResponse(isbn, 'db (già sufficiente)', snapshotFromDb(existing));
@@ -181,7 +187,7 @@ export async function resolveBookByIsbn(rawIsbn: string): Promise<ResolveBookRes
 
     const { data, updatedFields } = planDbUpdateFromExternal(
       existing,
-      external,
+      ext,
       provider ?? 'openlibrary',
     );
     logMergePlan(isbn, updatedFields, provider ?? 'esterno');
@@ -192,12 +198,15 @@ export async function resolveBookByIsbn(rawIsbn: string): Promise<ResolveBookRes
             where: { isbn },
             data: {
               ...data,
-              edition: external.edition ?? existing.edition,
+              edition: ext.edition ?? existing.edition,
             },
           })
         : existing;
 
     logResponse(isbn, updatedFields.length > 0 ? (provider ?? 'merge') : 'db', snapshotFromDb(book));
+    if (!isTrustedDbBook(book)) {
+      return { ok: false, attempts };
+    }
     return {
       ok: true,
       book,
@@ -210,19 +219,29 @@ export async function resolveBookByIsbn(rawIsbn: string): Promise<ResolveBookRes
     };
   }
 
+  if (!isAcceptableCatalogMetadata(ext, isbn)) {
+    console.log(
+      `[libro]   Metadati insufficienti o ISBN non verificato — non creo record (${attempts.map((a) => a.source).join(', ')})`,
+    );
+    console.log(
+      `[libro]   NON TROVATO — tentativi: ${attempts.map((a) => `${a.source}=${a.status}${a.detail ? `(${a.detail})` : ''}`).join(', ')}`,
+    );
+    return { ok: false, attempts };
+  }
+
   const book = await prisma.book.create({
     data: {
-      isbn: external.isbn,
-      title: external.title,
-      author: external.author,
-      publisher: external.publisher,
-      year: external.year,
-      edition: external.edition,
-      description: external.description,
-      language: external.language,
-      pages: external.pages,
-      genre: external.genre,
-      coverPath: pickCoverUrlSync(external.coverUrl, null, isbn),
+      isbn: ext.isbn,
+      title: ext.title,
+      author: ext.author,
+      publisher: ext.publisher,
+      year: ext.year,
+      edition: ext.edition,
+      description: ext.description,
+      language: ext.language,
+      pages: ext.pages,
+      genre: ext.genre,
+      coverPath: coverPathForCatalogCreate(ext),
       source: dbSource,
     },
   });

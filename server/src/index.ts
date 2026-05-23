@@ -2,7 +2,9 @@ import './loadEnv.js';
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
+import path from 'node:path';
 import { prisma } from './lib/prisma.js';
+import { getUploadDir } from './lib/uploads.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import authRouter from './routes/auth.js';
 import pointsRouter from './routes/points.js';
@@ -13,6 +15,8 @@ import reservationsRouter from './routes/reservations.js';
 import adminRouter from './routes/admin/index.js';
 import managerRouter from './routes/manager.js';
 import notificationsRouter from './routes/notifications.js';
+import reportsRouter from './routes/reports.js';
+import pointRequestsRouter from './routes/pointRequests.js';
 
 const app = express();
 const port = Number(process.env.PORT) || 3001;
@@ -25,6 +29,14 @@ app.use(
   }),
 );
 app.use(express.json());
+
+app.use(
+  '/api/uploads',
+  express.static(path.join(getUploadDir()), {
+    maxAge: process.env.NODE_ENV === 'production' ? '7d' : 0,
+    fallthrough: false,
+  }),
+);
 
 if (process.env.NODE_ENV !== 'production') {
   app.use((req, _res, next) => {
@@ -67,6 +79,8 @@ app.use('/api/reservations', reservationsRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/manager', managerRouter);
 app.use('/api/notifications', notificationsRouter);
+app.use('/api/reports', reportsRouter);
+app.use('/api/point-requests', pointRequestsRouter);
 
 app.use(errorHandler);
 

@@ -1,90 +1,105 @@
-import { FormEvent, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { FormEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useOutletContext } from 'react-router-dom';
 import axios from 'axios';
 import { api } from '@/lib/api';
-import BookCard from '@/components/BookCard';
+import BookSearchBottomSheet from '@/components/BookSearchBottomSheet';
+import BookListRow from '@/components/BookListRow';
+import LiberyOutlinedSearchField from '@/components/LiberyOutlinedSearchField';
+import { LiberyButton } from '@/lib/material/md-react';
 import { parseIsbn } from '@/lib/scanUtils';
-import { formatDistanceKm, haversineKm } from '@/lib/geo';
-import { POINT_TYPE_LABELS } from '@/lib/mapIcons';
 import { useAuthStore } from '@/stores/authStore';
 import { useUserPosition } from '@/stores/locationStore';
-import type { PointType } from '@/types/point';
-
-const SEARCH_BACK_STATE = { from: { to: '/cerca', label: 'Torna alla ricerca' } };
-
-type Availability = {
-  pointId: string;
-  pointName: string;
-  city: string | null;
-  address?: string | null;
-  type: PointType;
-  copies: number;
-  latitude?: number | null;
-  longitude?: number | null;
-};
-
-type BookResult = {
-  id: string;
-  isbn: string;
-  title: string;
-  author: string | null;
-  year: number | null;
-  genre: string | null;
-  coverPath?: string | null;
-  source?: string;
-  availability: Availability[];
-};
-
-type IsbnLookup = {
-  book: BookResult;
-  source: string;
-  provider?: string;
-  created: boolean;
-};
+import type { ShellOutletContext } from '@/components/AppShell';
+import {
+  isSearchBooksPath,
+  searchBooksBackState,
+  useSearchBooksStore,
+  type SearchBookResult,
+  type SearchIsbnLookup,
+} from '@/stores/searchBooksStore';
+import { useMdNativeFormBridge } from '@/lib/useMdNativeFormBridge';
 
 function looksLikeIsbn(q: string): boolean {
   return parseIsbn(q) !== null;
 }
 
-/**
- * Sceglie una singola sede da mostrare nella card di ricerca:
- *  - se userPos disponibile e ci sono coordinate → la più vicina (mostriamo la distanza)
- *  - altrimenti → una a caso (deterministica sul bookId)
- * In entrambi i casi la dicitura mostrata in UI è sempre "Puoi trovarlo qui".
- */
-function pickHighlight(
-  bookId: string,
-  availability: Availability[],
-  userPos: { lat: number; lng: number } | null | undefined,
-): { a: Availability; km: number | null } | null {
-  if (availability.length === 0) return null;
-
-  if (userPos) {
-    let best: { a: Availability; km: number } | null = null;
-    for (const a of availability) {
-      if (a.latitude == null || a.longitude == null) continue;
-      const km = haversineKm(userPos.lat, userPos.lng, a.latitude, a.longitude);
-      if (!best || km < best.km) best = { a, km };
-    }
-    if (best) return best;
-  }
-
-  // Random deterministico: somma codici char del bookId modulo length
-  let hash = 0;
-  for (let i = 0; i < bookId.length; i++) hash = (hash + bookId.charCodeAt(i)) % availability.length;
-  return { a: availability[hash], km: null };
-}
-
 export default function SearchBooksPage() {
+  const { pathname } = useLocation();
   const loggedIn = useAuthStore((s) => s.isLoggedIn());
   const [q, setQ] = useState('');
-  const [books, setBooks] = useState<BookResult[]>([]);
-  const [isbnResult, setIsbnResult] = useState<IsbnLookup | null>(null);
+  const [books, setBooks] = useState<SearchBookResult[]>([]);
+  const [isbnResult, setIsbnResult] = useState<SearchIsbnLookup | null>(null);
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
   const [searched, setSearched] = useState(false);
   const [error, setError] = useState('');
+  /** Libro selezionato dalla lista risultati (bottom sheet). */
+  const [picked, setPicked] = useState<SearchBookResult | null>(null);
   const { pos: userPos } = useUserPosition();
+  const searchBackState = useMemo(() => searchBooksBackState(pathname), [pathname]);
+  const saveSearchSnapshot = useSearchBooksStore((s) => s.save);
+  const searchRestoredRef = useRef(false);
+  const searchInputRef = useRef({ q, books, isbnResult, searched, picked, error });
+  searchInputRef.current = { q, books, isbnResult, searched, picked, error };
+
+  useLayoutEffect(() => {
+    if (!isSearchBooksPath(pathname) || searchRestoredRef.current) return;
+    const snap = useSearchBooksStore.getState().snapshot;
+    if (!snap || snap.returnPath !== pathname || !snap.searched) return;
+    searchRestoredRef.current = true;
+    setQ(snap.q);
+    setBooks(snap.books);
+    setIsbnResult(snap.isbnResult);
+    setSearched(snap.searched);
+    setError(snap.error);
+    const pickedBook =
+      snap.books.find((b) => b.id === snap.pickedId) ??
+      (snap.isbnResult?.book.id === snap.pickedId ? snap.isbnResult.book : null);
+    setPicked(pickedBook);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!isSearchBooksPath(pathname)) return;
+    if (!searched && !q.trim()) return;
+    saveSearchSnapshot({
+      returnPath: pathname,
+      q,
+      books,
+      isbnResult,
+      searched,
+      pickedId: picked?.id ?? null,
+      error,
+    });
+  }, [pathname, q, books, isbnResult, searched, picked, error, saveSearchSnapshot]);
+
+  useEffect(() => {
+    if (!isSearchBooksPath(pathname)) return;
+    return () => {
+      const latest = searchInputRef.current;
+      if (!latest.searched && !latest.q.trim()) return;
+      saveSearchSnapshot({
+        returnPath: pathname,
+        q: latest.q,
+        books: latest.books,
+        isbnResult: latest.isbnResult,
+        searched: latest.searched,
+        pickedId: latest.picked?.id ?? null,
+        error: latest.error,
+      });
+    };
+  }, [pathname, saveSearchSnapshot]);
+
+  const { setPageBar, openAuthSheet } = useOutletContext<ShellOutletContext>();
+  const searchFormRef = useRef<HTMLFormElement>(null);
+  useMdNativeFormBridge(searchFormRef);
+
+  useEffect(() => {
+    setPageBar({
+      title: 'Libri',
+      showBack: false,
+    });
+    return () => setPageBar(null);
+  }, [setPageBar]);
 
   async function lookupIsbn(isbnRaw: string) {
     const isbn = parseIsbn(isbnRaw);
@@ -96,10 +111,11 @@ export default function SearchBooksPage() {
     setError('');
     setIsbnResult(null);
     setBooks([]);
+    setPicked(null);
     setSearched(true);
     try {
       const { data } = await api.get<{
-        book: Omit<BookResult, 'availability'>;
+        book: Omit<SearchBookResult, 'availability'>;
         source: string;
         provider?: string;
         created: boolean;
@@ -126,9 +142,10 @@ export default function SearchBooksPage() {
     if (!isbn) return;
     setImporting(true);
     setError('');
+    setPicked(null);
     try {
       const { data } = await api.post<{
-        book: Omit<BookResult, 'availability'>;
+        book: Omit<SearchBookResult, 'availability'>;
         source: string;
         created: boolean;
       }>('/books/import', { isbn });
@@ -159,9 +176,10 @@ export default function SearchBooksPage() {
     setLoading(true);
     setError('');
     setIsbnResult(null);
+    setPicked(null);
     setSearched(true);
     try {
-      const { data } = await api.get<{ books: BookResult[] }>('/books/search', {
+      const { data } = await api.get<{ books: SearchBookResult[] }>('/books/search', {
         params: { q: q.trim() },
       });
       setBooks(data.books);
@@ -177,61 +195,66 @@ export default function SearchBooksPage() {
     }
   }
 
-  // pre-calcolo highlight per ogni libro
-  const booksWithHighlight = useMemo(
-    () => books.map((b) => ({ book: b, highlight: pickHighlight(b.id, b.availability, userPos) })),
-    [books, userPos],
-  );
+  function favoriteMenu(
+    b: Pick<SearchBookResult, 'id' | 'isbn' | 'title' | 'author' | 'year' | 'genre' | 'coverPath'>,
+  ) {
+    return {
+      favorite: {
+        bookId: b.id,
+        book: {
+          id: b.id,
+          isbn: b.isbn,
+          title: b.title,
+          author: b.author,
+          year: b.year,
+          genre: b.genre ?? null,
+          coverPath: b.coverPath ?? null,
+        },
+        onNeedLogin: () => openAuthSheet('login'),
+      },
+    };
+  }
 
   return (
-    <div className="page-content px-3 py-3">
-      <h1 className="h5 fw-bold mb-1">Libri</h1>
-      <p className="small text-muted mb-3">
-        Cerca per titolo o inserisci un ISBN (10 o 13 cifre) per importare da Google Books.
-      </p>
-
-      <form onSubmit={handleSearch} className="mb-4">
-        <div className="input-group">
-          <input
-            type="search"
-            className="form-control"
+    <div className="page-content libery-search-page">
+      <form
+        ref={searchFormRef}
+        onSubmit={handleSearch}
+        className="libery-search-form libery-search-form--page"
+      >
+        <div className="libery-search-row">
+          <LiberyOutlinedSearchField
+            className="libery-search-field"
+            id="libery-search-books"
+            label="Cerca"
             placeholder="Titolo, autore o ISBN…"
             value={q}
-            onChange={(e) => setQ(e.target.value)}
+            onValueChange={setQ}
+            disabled={loading || importing}
           />
-          <button type="submit" className="btn btn-libery" disabled={loading || importing}>
-            {loading ? '…' : looksLikeIsbn(q.trim()) ? 'ISBN' : 'Cerca'}
-          </button>
         </div>
       </form>
+
+      <div className="libery-search-page-body px-3 pb-3">
 
       {error && <p className="text-danger small">{error}</p>}
 
       {isbnResult && (
-        <ul className="list-unstyled mb-3 book-card-list">
-          <BookCard
-            book={isbnResult.book}
-            linkState={SEARCH_BACK_STATE}
-            coverBadge={
-              isbnResult.provider === 'google'
-                ? 'Google'
-                : isbnResult.provider === 'openlibrary'
-                  ? 'OpenLib'
-                  : 'Catalogo'
-            }
-            subtitle={
-              <>
-                ISBN {isbnResult.book.isbn}
-                {isbnResult.book.year ? ` · ${isbnResult.book.year}` : ''}
-                <span className="d-block">
-                  {isbnResult.created
-                    ? 'Aggiunto al catalogo. Usa la fotocamera per lasciarlo in un punto.'
-                    : 'Già nel catalogo Libery.'}
-                </span>
-              </>
-            }
+        <div className="libery-book-list mb-3">
+          <BookListRow
+            book={{
+              id: isbnResult.book.id,
+              title: isbnResult.book.title,
+              author: isbnResult.book.author,
+              isbn: isbnResult.book.isbn,
+              year: isbnResult.book.year,
+              coverPath: isbnResult.book.coverPath ?? null,
+            }}
+            isLast
+            onRowClick={() => setPicked(isbnResult.book)}
+            menu={loggedIn ? favoriteMenu(isbnResult.book) : undefined}
           />
-        </ul>
+        </div>
       )}
 
       {searched && !loading && !isbnResult && books.length === 0 && !error && (
@@ -239,63 +262,59 @@ export default function SearchBooksPage() {
       )}
 
       {loggedIn && looksLikeIsbn(q.trim()) && !isbnResult && searched && !loading && (
-        <button
+        <LiberyButton
           type="button"
-          className="btn btn-outline-secondary btn-sm mb-3"
+          color="outlined"
+          size="small"
+          className="mb-3"
           disabled={importing}
           onClick={handleImportIsbn}
         >
           {importing ? 'Import…' : 'Riprova import da Google'}
-        </button>
+        </LiberyButton>
       )}
 
-      <ul className="list-unstyled mb-0 book-card-list">
-        {booksWithHighlight.map(({ book: b, highlight }) => {
-          const subtitle = highlight ? (
-            <div className="search-book-where">
-              <span className="search-book-where-label">puoi trovarlo qui:</span>
-              <Link
-                to={`/punto/${highlight.a.pointId}`}
-                state={SEARCH_BACK_STATE}
-                className="search-book-where-name"
-              >
-                {highlight.a.pointName}
-              </Link>
-              <span className="search-book-where-badge">
-                <span className={`map-popup-type map-popup-type--${highlight.a.type}`}>
-                  {POINT_TYPE_LABELS[highlight.a.type]}
-                </span>
-                {highlight.km != null && (
-                  <span className="text-muted small">
-                    · {formatDistanceKm(highlight.km)}
-                  </span>
-                )}
-              </span>
-              {(highlight.a.address || highlight.a.city) && (
-                <span className="search-book-where-address">
-                  {[highlight.a.address, highlight.a.city].filter(Boolean).join(', ')}
-                </span>
-              )}
-            </div>
-          ) : (
-            <span className="text-muted">Non disponibile nei punti Libery al momento.</span>
-          );
+      <div className="libery-book-list mb-0">
+        {books.map((b, idx) => (
+          <BookListRow
+            key={b.id}
+            book={{
+              id: b.id,
+              title: b.title,
+              author: b.author,
+              isbn: b.isbn,
+              year: b.year,
+              coverPath: b.coverPath ?? null,
+            }}
+            isLast={idx === books.length - 1}
+            onRowClick={() => setPicked(b)}
+            menu={loggedIn ? favoriteMenu(b) : undefined}
+          />
+        ))}
+      </div>
 
-          return (
-            <BookCard
-              key={b.id}
-              book={b}
-              linkState={SEARCH_BACK_STATE}
-              coverBadge={
-                highlight
-                  ? `${highlight.a.copies} ${highlight.a.copies === 1 ? 'copia' : 'copie'}`
-                  : undefined
-              }
-              subtitle={subtitle}
-            />
-          );
-        })}
-      </ul>
+      {picked ? (
+        <BookSearchBottomSheet
+          book={picked}
+          open
+          userPos={userPos}
+          backState={searchBackState}
+          bookLinkState={searchBackState}
+          onOpenChange={(next) => {
+            if (!next) setPicked(null);
+          }}
+          footnote={
+            isbnResult && picked.id === isbnResult.book.id ? (
+              <p className="small text-muted mb-0">
+                {isbnResult.created
+                  ? 'Aggiunto al catalogo. Puoi lasciarlo in un punto dalla fotocamera.'
+                  : 'Già nel catalogo Libery.'}
+              </p>
+            ) : undefined
+          }
+        />
+      ) : null}
+      </div>
     </div>
   );
 }

@@ -1,0 +1,66 @@
+// Trama libro: clamp 8 righe + «Leggi altro» MD
+
+.book-description {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  max-width: 100%;
+}
+
+.book-description__text {
+  width: 100%;
+  min-width: 0;
+}
+
+.book-description--clamped .book-description__text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 8;
+  overflow: hidden;
+}
+
+.book-description--expanded .book-description__text {
+  display: block;
+  overflow: visible;
+}
+
+.book-description__toggle {
+  align-self: flex-start;
+  margin: 0.1rem 0 0;
+  min-height: 2rem;
+  padding-inline: 0.35rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.book-description-para {
+  margin: 0 0 0.65rem;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--md-sys-color-on-surface, #{$libery-ink});
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.libery-book-sheet-desc.book-description .book-description-para,
+.book-description.libery-book-sheet-desc .book-description-para {
+  font-size: 0.875rem;
+  line-height: 1.35;
+}
+
+.book-page-desc-body.book-description .book-description-para,
+.book-description.book-page-desc-body .book-description-para {
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.camera-book-preview-desc-body.book-description .book-description-para,
+.book-description.camera-book-preview-desc-body .book-description-para {
+  font-size: 0.875rem;
+  line-height: 1.4;
+}

@@ -1,5 +1,7 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
+import { LiberyButton, MdCard, MdTextField } from '@/lib/material/md-react';
+import { useMdNativeFormBridge } from '@/lib/useMdNativeFormBridge';
 
 type UserRow = {
   id: string;
@@ -15,6 +17,9 @@ export default function AdminUsers() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [q, setQ] = useState('');
   const [msg, setMsg] = useState('');
+  const [msgIsError, setMsgIsError] = useState(false);
+  const createFormRef = useRef<HTMLFormElement>(null);
+  useMdNativeFormBridge(createFormRef);
   const [form, setForm] = useState({
     email: '',
     password: '',
@@ -34,12 +39,14 @@ export default function AdminUsers() {
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
     setMsg('');
+    setMsgIsError(false);
     try {
       await api.post('/admin/users', form);
       setForm({ email: '', password: '', displayName: '', role: 'user' });
       setMsg('Utente creato');
       load();
     } catch {
+      setMsgIsError(true);
       setMsg('Errore creazione utente');
     }
   }
@@ -49,77 +56,114 @@ export default function AdminUsers() {
     load();
   }
 
+  async function changeRole(id: string, role: string) {
+    setMsg('');
+    setMsgIsError(false);
+    try {
+      await api.put(`/admin/users/${id}/role`, { role });
+      setMsg('Ruolo aggiornato');
+      load();
+    } catch {
+      setMsgIsError(true);
+      setMsg('Solo admin può cambiare ruoli; responsabile richiede un punto assegnato');
+    }
+  }
+
+  function tf(patch: Partial<typeof form>) {
+    setForm((f) => ({ ...f, ...patch }));
+  }
+
   return (
     <div>
       <h1 className="h4 fw-bold mb-4">Utenti</h1>
 
-      <div className="card border-0 shadow-sm mb-4">
-        <div className="card-body">
-          <h2 className="h6 fw-bold mb-3">Nuovo utente</h2>
-          {msg && <div className="alert alert-success py-2 small">{msg}</div>}
-          <form className="row g-2" onSubmit={handleCreate}>
-            <div className="col-md-3">
-              <input
-                className="form-control form-control-sm"
-                placeholder="Email"
-                type="email"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                required
-              />
-            </div>
-            <div className="col-md-2">
-              <input
-                className="form-control form-control-sm"
-                placeholder="Password"
-                type="password"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                required
-              />
-            </div>
-            <div className="col-md-2">
-              <input
-                className="form-control form-control-sm"
-                placeholder="Nome"
-                value={form.displayName}
-                onChange={(e) => setForm({ ...form, displayName: e.target.value })}
-              />
-            </div>
-            <div className="col-md-2">
-              <select
-                className="form-select form-select-sm"
-                value={form.role}
-                onChange={(e) => setForm({ ...form, role: e.target.value })}
-              >
-                <option value="user">Utente</option>
-                <option value="point_manager">Responsabile</option>
-                <option value="admin">Admin</option>
-              </select>
-            </div>
-            <div className="col-md-2">
-              <button type="submit" className="btn btn-sm btn-libery w-100">
-                Crea
-              </button>
-            </div>
-          </form>
+      <MdCard type="elevated" className="mb-4" style={{ padding: '1rem' }}>
+        <h2 className="h6 fw-bold mb-3">Nuovo utente</h2>
+        {msg && (
+          <div
+            className={`small libery-inline-alert mb-3 ${
+              msgIsError ? 'libery-inline-alert-error' : 'libery-inline-alert-success'
+            }`}
+          >
+            {msg}
+          </div>
+        )}
+        <form ref={createFormRef} className="libery-admin-fields mb-3" onSubmit={handleCreate}>
+          <div className="libery-admin-field">
+            <MdTextField
+              label="Email"
+              type="email"
+              value={form.email}
+              required
+              style={{ width: '100%' }}
+              onInput={(e: Event) => tf({ email: (e.currentTarget as HTMLElement & { value: string }).value })}
+            />
+          </div>
+          <div className="libery-admin-field">
+            <MdTextField
+              label="Password"
+              type="password"
+              value={form.password}
+              required
+              style={{ width: '100%' }}
+              onInput={(e: Event) => tf({ password: (e.currentTarget as HTMLElement & { value: string }).value })}
+            />
+          </div>
+          <div className="libery-admin-field">
+            <MdTextField
+              label="Nome"
+              type="text"
+              value={form.displayName}
+              style={{ width: '100%' }}
+              onInput={(e: Event) => tf({ displayName: (e.currentTarget as HTMLElement & { value: string }).value })}
+            />
+          </div>
+          <div className="libery-admin-field" style={{ minWidth: '9rem', flexBasis: '9rem' }}>
+            <label className="small d-block mb-1 text-muted" htmlFor="admin-user-role">
+              Ruolo
+            </label>
+            <select
+              id="admin-user-role"
+              className="libery-select"
+              value={form.role}
+              onChange={(e) => tf({ role: e.target.value })}
+            >
+              <option value="user">Utente</option>
+              <option value="point_staff">Addetto</option>
+              <option value="point_manager">Responsabile</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <LiberyButton
+            type="button"
+            color="filled"
+            size="small"
+            style={{ alignSelf: 'stretch' }}
+            onClick={() => createFormRef.current?.requestSubmit()}
+          >
+            Crea
+          </LiberyButton>
+        </form>
+      </MdCard>
+
+      <div className="d-flex flex-wrap gap-2 mb-3 align-items-start">
+        <MdTextField
+          label="Cerca"
+          type="search"
+          placeholder="Email o nome…"
+          style={{ flex: '1 1 12rem', minWidth: '12rem', maxWidth: '24rem' }}
+          value={q}
+          onInput={(e: Event) => setQ((e.currentTarget as HTMLElement & { value: string }).value)}
+        />
+        <div className="mt-3">
+          <LiberyButton type="button" color="outlined" size="small" onClick={load}>
+            Cerca
+          </LiberyButton>
         </div>
       </div>
 
-      <div className="d-flex gap-2 mb-3">
-        <input
-          className="form-control form-control-sm"
-          placeholder="Cerca email o nome…"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
-        <button type="button" className="btn btn-sm btn-outline-secondary" onClick={load}>
-          Cerca
-        </button>
-      </div>
-
       <div className="table-responsive">
-        <table className="table table-sm align-middle bg-white shadow-sm">
+        <table className="libery-table">
           <thead>
             <tr>
               <th>Email</th>
@@ -127,7 +171,7 @@ export default function AdminUsers() {
               <th>Ruolo</th>
               <th>Libri extra</th>
               <th>Stato</th>
-              <th></th>
+              <th />
             </tr>
           </thead>
           <tbody>
@@ -136,18 +180,29 @@ export default function AdminUsers() {
                 <td>{u.email}</td>
                 <td>{u.displayName ?? '—'}</td>
                 <td>
-                  <span className="badge text-bg-light">{u.role}</span>
+                  <select
+                    className="libery-select libery-select--compact"
+                    value={u.role}
+                    onChange={(e) => void changeRole(u.id, e.target.value)}
+                    aria-label={`Ruolo ${u.email}`}
+                  >
+                    <option value="user">user</option>
+                    <option value="point_staff">point_staff</option>
+                    <option value="point_manager">point_manager</option>
+                    <option value="admin">admin</option>
+                  </select>
                 </td>
                 <td>{u.libriExtra}</td>
                 <td>{u.isActive ? 'Attivo' : 'Sospeso'}</td>
                 <td>
-                  <button
+                  <LiberyButton
                     type="button"
-                    className="btn btn-sm btn-outline-secondary"
+                    color="outlined"
+                    size="small"
                     onClick={() => toggleActive(u.id, u.isActive)}
                   >
                     {u.isActive ? 'Sospendi' : 'Riattiva'}
-                  </button>
+                  </LiberyButton>
                 </td>
               </tr>
             ))}

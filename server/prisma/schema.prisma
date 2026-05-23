@@ -11,6 +11,7 @@ datasource db {
 
 enum UserRole {
   user
+  point_staff
   point_manager
   admin
 }
@@ -62,28 +63,61 @@ enum BookSource {
 }
 
 model User {
-  id            String   @id @default(uuid()) @db.Uuid
-  email         String   @unique
-  passwordHash  String   @map("password_hash")
-  displayName   String?  @map("display_name")
-  avatarUrl     String?  @map("avatar_url")
-  libriExtra    Int      @default(0) @map("libri_extra")
-  libriOggiUsed Int      @default(0) @map("libri_oggi_used")
-  role          UserRole @default(user)
-  isActive      Boolean  @default(true) @map("is_active")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  id              String    @id @default(uuid()) @db.Uuid
+  email           String    @unique
+  passwordHash    String    @map("password_hash")
+  displayName     String?   @map("display_name")
+  avatarUrl       String?   @map("avatar_url")
+  libriExtra      Int       @default(0) @map("libri_extra")
+  libriOggiUsed   Int       @default(0) @map("libri_oggi_used")
+  role            UserRole  @default(user)
+  emailVerifiedAt DateTime? @map("email_verified_at")
+  isActive        Boolean   @default(true) @map("is_active")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
 
-  managedPoints Point[]           @relation("PointManager")
-  aeroplanini   UserAeroplanino[]
-  transactions  Transaction[]
-  reservations  Reservation[]
-  reports       Report[]
-  pointRequests PointRequest[]    @relation("PointRequester")
-  notifications Notification[]
-  favorites     UserFavorite[]
+  managedPoints       Point[]                  @relation("PointManager")
+  pointStaffAt        PointStaff[]             @relation("PointStaffMember")
+  pointStaffAdded     PointStaff[]             @relation("PointStaffAddedBy")
+  aeroplanini         UserAeroplanino[]
+  transactions        Transaction[]
+  reservations        Reservation[]
+  reports             Report[]
+  pointRequests       PointRequest[]           @relation("PointRequester")
+  notifications       Notification[]
+  favorites           UserFavorite[]
+  emailVerifications  EmailVerificationToken[]
 
   @@map("users")
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  tokenHash String   @unique @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("email_verification_tokens")
+}
+
+model PointStaff {
+  id        String   @id @default(uuid()) @db.Uuid
+  pointId   String   @map("point_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  addedById String   @map("added_by_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  point   Point @relation(fields: [pointId], references: [id], onDelete: Cascade)
+  user    User  @relation("PointStaffMember", fields: [userId], references: [id], onDelete: Cascade)
+  addedBy User  @relation("PointStaffAddedBy", fields: [addedById], references: [id], onDelete: Restrict)
+
+  @@unique([pointId, userId])
+  @@index([userId])
+  @@map("point_staff")
 }
 
 model UserFavorite {
@@ -147,6 +181,7 @@ model Point {
   approvedById   String?     @map("approved_by") @db.Uuid
 
   manager      User?         @relation("PointManager", fields: [managerId], references: [id])
+  staff        PointStaff[]
   pointBooks   PointBook[]
   transactions Transaction[]
 
@@ -247,6 +282,8 @@ model PointRequest {
   name         String
   address      String?
   city         String?
+  latitude     Float?
+  longitude    Float?
   description  String?
   contactEmail String?            @map("contact_email")
   contactPhone String?            @map("contact_phone")

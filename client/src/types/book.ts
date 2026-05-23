@@ -18,6 +18,7 @@ export type BookSummary = {
   author: string | null;
   year?: number | null;
   genre?: string | null;
+  publisher?: string | null;
   description?: string | null;
   coverPath?: string | null;
   availability: BookAvailability[];

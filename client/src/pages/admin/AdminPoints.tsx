@@ -1,5 +1,7 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
+import { LiberyButton, MdCard, MdTextField } from '@/lib/material/md-react';
+import { useMdNativeFormBridge } from '@/lib/useMdNativeFormBridge';
 
 type PointRow = {
   id: string;
@@ -16,6 +18,18 @@ export default function AdminPoints() {
   const [q, setQ] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [msg, setMsg] = useState('');
+  const [msgIsError, setMsgIsError] = useState(false);
+
+  const createFormRef = useRef<HTMLFormElement>(null);
+  useMdNativeFormBridge(createFormRef);
+
+  const [create, setCreate] = useState({
+    name: '',
+    type: 'biblioteca',
+    city: '',
+    address: '',
+    managerEmail: '',
+  });
 
   async function load() {
     const { data } = await api.get('/admin/points', {
@@ -31,23 +45,27 @@ export default function AdminPoints() {
     load();
   }, []);
 
-  async function handleCreate(e: FormEvent<HTMLFormElement>) {
+  function cf(patch: Partial<typeof create>) {
+    setCreate((c) => ({ ...c, ...patch }));
+  }
+
+  async function handleCreate(e: FormEvent) {
     e.preventDefault();
-    const fd = new FormData(e.currentTarget);
     setMsg('');
+    setMsgIsError(false);
     try {
       await api.post('/admin/points', {
-        name: fd.get('name'),
-        type: fd.get('type'),
-        city: fd.get('city') || undefined,
-        address: fd.get('address') || undefined,
-        managerEmail: fd.get('managerEmail') || undefined,
-        managerPassword: fd.get('managerPassword') || undefined,
+        name: create.name.trim(),
+        type: create.type,
+        city: create.city.trim() || undefined,
+        address: create.address.trim() || undefined,
+        managerEmail: create.managerEmail.trim() || undefined,
       });
-      e.currentTarget.reset();
+      setCreate({ name: '', type: 'biblioteca', city: '', address: '', managerEmail: '' });
       setMsg('Punto creato e approvato');
       load();
     } catch {
+      setMsgIsError(true);
       setMsg('Errore creazione punto');
     }
   }
@@ -61,70 +79,119 @@ export default function AdminPoints() {
     <div>
       <h1 className="h4 fw-bold mb-4">Punti</h1>
 
-      <div className="card border-0 shadow-sm mb-4">
-        <div className="card-body">
-          <h2 className="h6 fw-bold mb-3">Nuovo punto (approvato)</h2>
-          {msg && <div className="alert alert-success py-2 small">{msg}</div>}
-          <form className="row g-2" onSubmit={handleCreate}>
-            <div className="col-md-2">
-              <input name="name" className="form-control form-control-sm" placeholder="Nome" required />
-            </div>
-            <div className="col-md-2">
-              <select name="type" className="form-select form-select-sm" required defaultValue="biblioteca">
-                <option value="biblioteca">Biblioteca</option>
-                <option value="libreria">Libreria</option>
-                <option value="corner_free">Corner Free</option>
-              </select>
-            </div>
-            <div className="col-md-2">
-              <input name="city" className="form-control form-control-sm" placeholder="Città" />
-            </div>
-            <div className="col-md-2">
-              <input name="address" className="form-control form-control-sm" placeholder="Indirizzo" />
-            </div>
-            <div className="col-md-2">
-              <input
-                name="managerEmail"
-                type="email"
-                className="form-control form-control-sm"
-                placeholder="Email gestore"
-              />
-            </div>
-            <div className="col-md-2">
-              <button type="submit" className="btn btn-sm btn-libery w-100">
-                Crea
-              </button>
-            </div>
-          </form>
+      <MdCard type="elevated" className="mb-4" style={{ padding: '1rem' }}>
+        <h2 className="h6 fw-bold mb-3">Nuovo punto (approvato)</h2>
+        {msg && (
+          <div
+            className={`small libery-inline-alert mb-3 ${
+              msgIsError ? 'libery-inline-alert-error' : 'libery-inline-alert-success'
+            }`}
+          >
+            {msg}
+          </div>
+        )}
+        <form ref={createFormRef} className="libery-admin-fields mb-3" onSubmit={handleCreate}>
+          <div className="libery-admin-field">
+            <MdTextField
+              label="Nome"
+              type="text"
+              required
+              value={create.name}
+              style={{ width: '100%' }}
+              onInput={(e: Event) => cf({ name: (e.currentTarget as HTMLElement & { value: string }).value })}
+            />
+          </div>
+          <div className="libery-admin-field" style={{ minWidth: '10rem', flexBasis: '10rem' }}>
+            <label className="small d-block mb-1 text-muted" htmlFor="new-point-type">
+              Tipo
+            </label>
+            <select
+              id="new-point-type"
+              className="libery-select"
+              value={create.type}
+              required
+              onChange={(e) => cf({ type: e.target.value })}
+            >
+              <option value="biblioteca">Biblioteca</option>
+              <option value="libreria">Libreria</option>
+              <option value="corner_free">Corner Free</option>
+            </select>
+          </div>
+          <div className="libery-admin-field">
+            <MdTextField
+              label="Città"
+              type="text"
+              value={create.city}
+              style={{ width: '100%' }}
+              onInput={(e: Event) => cf({ city: (e.currentTarget as HTMLElement & { value: string }).value })}
+            />
+          </div>
+          <div className="libery-admin-field">
+            <MdTextField
+              label="Indirizzo"
+              type="text"
+              value={create.address}
+              style={{ width: '100%' }}
+              onInput={(e: Event) => cf({ address: (e.currentTarget as HTMLElement & { value: string }).value })}
+            />
+          </div>
+          <div className="libery-admin-field">
+            <MdTextField
+              label="Email gestore"
+              type="email"
+              value={create.managerEmail}
+              style={{ width: '100%' }}
+              onInput={(e: Event) =>
+                cf({ managerEmail: (e.currentTarget as HTMLElement & { value: string }).value })
+              }
+            />
+          </div>
+          <LiberyButton
+            type="button"
+            color="filled"
+            size="small"
+            style={{ alignSelf: 'stretch' }}
+            onClick={() => createFormRef.current?.requestSubmit()}
+          >
+            Crea
+          </LiberyButton>
+        </form>
+      </MdCard>
+
+      <div className="d-flex flex-wrap gap-2 mb-3 align-items-start">
+        <MdTextField
+          label="Cerca"
+          type="search"
+          style={{ flex: '1 1 10rem', minWidth: '10rem', maxWidth: '240px' }}
+          placeholder="Nome, città…"
+          value={q}
+          onInput={(e: Event) => setQ((e.currentTarget as HTMLElement & { value: string }).value)}
+        />
+        <div style={{ minWidth: '10rem', maxWidth: '200px', flex: '0 1 12rem', marginTop: '1.15rem' }}>
+          <label className="small d-block mb-1 text-muted visually-hidden" htmlFor="pt-status-filter">
+            Stato
+          </label>
+          <select
+            id="pt-status-filter"
+            className="libery-select"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="">Tutti gli stati</option>
+            <option value="approved">Approvati</option>
+            <option value="pending">In attesa</option>
+            <option value="suspended">Sospesi</option>
+          </select>
+        </div>
+        <div className="mt-3">
+          <LiberyButton type="button" color="outlined" size="small" onClick={load}>
+            Filtra
+          </LiberyButton>
         </div>
       </div>
 
-      <div className="d-flex flex-wrap gap-2 mb-3">
-        <input
-          className="form-control form-control-sm"
-          style={{ maxWidth: 200 }}
-          placeholder="Cerca…"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
-        <select
-          className="form-select form-select-sm"
-          style={{ maxWidth: 160 }}
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-        >
-          <option value="">Tutti gli stati</option>
-          <option value="approved">Approvati</option>
-          <option value="pending">In attesa</option>
-          <option value="suspended">Sospesi</option>
-        </select>
-        <button type="button" className="btn btn-sm btn-outline-secondary" onClick={load}>
-          Filtra
-        </button>
-      </div>
-
       <div className="table-responsive">
-        <table className="table table-sm align-middle bg-white shadow-sm">
+        <table className="libery-table">
           <thead>
             <tr>
               <th>Nome</th>
@@ -143,29 +210,28 @@ export default function AdminPoints() {
                 <td>{p.type}</td>
                 <td>{p.city ?? '—'}</td>
                 <td>
-                  <span className="badge text-bg-light">{p.status}</span>
+                  <span className="libery-badge">{p.status}</span>
                 </td>
                 <td>{p.setupCompleted ? '✓' : '—'}</td>
                 <td className="small">{p.manager?.email ?? '—'}</td>
-                <td className="d-flex gap-1 flex-wrap">
-                  {p.status !== 'approved' && (
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-success"
-                      onClick={() => setStatus(p.id, 'approved')}
-                    >
-                      OK
-                    </button>
-                  )}
-                  {p.status !== 'suspended' && (
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-outline-danger"
-                      onClick={() => setStatus(p.id, 'suspended')}
-                    >
-                      Sospendi
-                    </button>
-                  )}
+                <td>
+                  <div className="d-flex gap-2 flex-wrap">
+                    {p.status !== 'approved' && (
+                      <LiberyButton type="button" color="filled" size="small" onClick={() => setStatus(p.id, 'approved')}>
+                        OK
+                      </LiberyButton>
+                    )}
+                    {p.status !== 'suspended' && (
+                      <LiberyButton
+                        type="button"
+                        color="outlined"
+                        size="small"
+                        onClick={() => setStatus(p.id, 'suspended')}
+                      >
+                        Sospendi
+                      </LiberyButton>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

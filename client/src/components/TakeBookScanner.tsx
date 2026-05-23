@@ -1,10 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import axios from 'axios';
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import BarcodeScanner from '@/components/BarcodeScanner';
+import CameraFlowScanFeedback from '@/components/CameraFlowScanFeedback';
+import { cameraAlerts } from '@/lib/cameraAlerts';
+import CameraFlowInfoMenu from '@/components/CameraFlowInfoMenu';
 import BookCoverThumb from '@/components/BookCoverThumb';
 import { api } from '@/lib/api';
 import { formatDistanceKm, haversineKm, NEAR_POINT_KM, nearPointRadiusLabel } from '@/lib/geo';
 import { classifyScan } from '@/lib/scanUtils';
+import { LiberyButton, MdIcon, MdIconButton, MdTextField } from '@/lib/material/md-react';
+import { toast } from '@/stores/toastStore';
+import { useSlotsStore } from '@/stores/slotsStore';
 
 type BookTarget = {
   id: string;
@@ -47,8 +52,9 @@ export default function TakeBookScanner({
   onSuccess,
 }: Props) {
   const [phase, setPhase] = useState<Phase>('verify');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  type LoadingPhase = 'idle' | 'reading' | 'fetching';
+  const [loadingPhase, setLoadingPhase] = useState<LoadingPhase>('idle');
+  const loading = loadingPhase !== 'idle';
   const [manualIsbn, setManualIsbn] = useState('');
   const [gpsDenied, setGpsDenied] = useState(false);
   const [nearKm, setNearKm] = useState<number | null>(null);
@@ -56,8 +62,7 @@ export default function TakeBookScanner({
 
   const reset = useCallback(() => {
     setPhase('verify');
-    setError('');
-    setLoading(false);
+    setLoadingPhase('idle');
     setManualIsbn('');
     setGpsDenied(false);
     setNearKm(null);
@@ -81,7 +86,6 @@ export default function TakeBookScanner({
         setGpsDenied(false);
         if (km <= NEAR_POINT_KM) {
           setPhase('isbn');
-          setError('');
         }
       },
       () => setGpsDenied(true),
@@ -97,81 +101,103 @@ export default function TakeBookScanner({
     tryGps();
   }, [open, reset, tryGps]);
 
+  const gpsHintShownRef = useRef(false);
+  useEffect(() => {
+    if (!open || phase !== 'verify') {
+      gpsHintShownRef.current = false;
+      return;
+    }
+    const atPoint = nearKm != null && nearKm <= NEAR_POINT_KM;
+    if (atPoint) {
+      gpsHintShownRef.current = false;
+      return;
+    }
+    if (gpsHintShownRef.current) return;
+    gpsHintShownRef.current = true;
+    if (gpsDenied) {
+      toast.warning('GPS non disponibile: inquadra il cartello Libery del punto.', { duration: 6000 });
+    } else if (nearKm != null && nearKm > NEAR_POINT_KM) {
+      toast.warning(
+        `Sei a ${formatDistanceKm(nearKm)}: avvicinati (entro ${nearPointRadiusLabel()}) o usa il cartello QR.`,
+        { duration: 6000 },
+      );
+    } else {
+      toast.info(
+        `Per prendere il libro serve il GPS attivo (entro ${nearPointRadiusLabel()}) o il cartello QR.`,
+        { duration: 6000 },
+      );
+    }
+  }, [open, phase, nearKm, gpsDenied]);
+
   const confirmTake = async (isbn: string) => {
     if (busyRef.current) return;
     if (!isbnMatches(isbn, book.isbn)) {
-      setError('ISBN non corrisponde a questo libro. Inquadra il codice sul volume scelto.');
+      cameraAlerts.isbnNotRecognized();
       return;
     }
     busyRef.current = true;
-    setLoading(true);
-    setError('');
+    setLoadingPhase('fetching');
     try {
       const { data } = await api.post<{ message: string }>('/transactions/take', {
         pointId,
         isbn,
       });
       onSuccess?.(data.message);
+      void useSlotsStore.getState().refreshSlots();
       handleClose();
-    } catch (err) {
-      const msg = axios.isAxiosError(err)
-        ? (err.response?.data as { error?: string })?.error ?? 'Non è stato possibile prendere il libro'
-        : 'Errore di rete';
-      setError(msg);
+    } catch {
+      cameraAlerts.bookNotRecognized();
       busyRef.current = false;
     } finally {
-      setLoading(false);
+      setLoadingPhase('idle');
     }
   };
 
   const handleScan = (text: string) => {
     const classified = classifyScan(text);
     if (!classified) {
-      setError(
-        phase === 'verify'
-          ? 'Inquadra il cartello Libery nel punto.'
-          : "Inquadra il codice a barre dell'ISBN sul libro.",
-      );
+      cameraAlerts.isbnNotRecognized();
       return;
     }
 
     if (phase === 'verify') {
       if (classified.kind !== 'qr') {
-        setError('Senza GPS attivo devi inquadrare il cartello Libery (QR), non l\'ISBN.');
+        toast.warning('Senza GPS attivo devi inquadrare il cartello Libery (QR), non l\'ISBN.');
         return;
       }
-      setLoading(true);
+      setLoadingPhase('fetching');
       void (async () => {
         try {
           const { data } = await api.get<{ point: { id: string } }>(`/points/qr/${classified.value}`);
           if (data.point.id !== pointId) {
-            setError('Questo cartello non corrisponde a questo punto.');
+            cameraAlerts.bookNotRecognized();
             return;
           }
           setPhase('isbn');
-          setError('');
         } catch {
-          setError('Cartello non riconosciuto');
+          cameraAlerts.bookNotRecognized();
         } finally {
-          setLoading(false);
+          setLoadingPhase('idle');
         }
       })();
       return;
     }
 
     if (classified.kind !== 'isbn') {
-      setError("Inquadra il codice a barre dell'ISBN sul libro.");
+      cameraAlerts.isbnNotRecognized();
       return;
     }
+    setLoadingPhase('reading');
     void confirmTake(classified.value);
   };
 
   const submitManual = () => {
     const classified = classifyScan(manualIsbn.trim());
     if (!classified || classified.kind !== 'isbn') {
-      setError('Inserisci un ISBN valido');
+      cameraAlerts.isbnNotRecognized();
       return;
     }
+    setLoadingPhase('reading');
     void confirmTake(classified.value);
   };
 
@@ -183,10 +209,21 @@ export default function TakeBookScanner({
   return (
     <div className="camera-flow camera-flow--app take-book-scanner" role="dialog" aria-modal="true">
       <header className="camera-flow-app-header">
-        <button type="button" className="btn-close" onClick={handleClose} aria-label="Chiudi" />
+        <MdIconButton type="button" aria-label="Chiudi" onClick={handleClose}>
+          <MdIcon>close</MdIcon>
+        </MdIconButton>
         <span className="camera-flow-app-title">
-          {phase === 'verify' ? 'Prendi — conferma punto' : 'Prendi — conferma ISBN'}
+          {phase === 'verify' ? 'Ricevi — conferma punto' : 'Ricevi — conferma ISBN'}
         </span>
+        <div className="camera-flow-app-header__spacer" aria-hidden />
+        <CameraFlowInfoMenu
+          variant="take"
+          phaseHint={
+            phase === 'verify'
+              ? 'Inquadra il cartello Libery con il QR.'
+              : "Inquadra il codice a barre dell'ISBN sul volume."
+          }
+        />
       </header>
 
       {showScanner && (
@@ -195,14 +232,17 @@ export default function TakeBookScanner({
             'camera-flow-scanner-wrap--isbn'
           }`}
         >
-          <BarcodeScanner active={!loading} mode={scanMode} onScan={handleScan} onError={setError} />
-          <p className="camera-flow-hint">
-            {phase === 'verify'
-              ? 'Inquadra il cartello Libery'
-              : "Inquadra il codice a barre dell'ISBN"}
-          </p>
+          <BarcodeScanner
+            active={showScanner}
+            paused={loadingPhase !== 'idle'}
+            mode={scanMode}
+            onScan={handleScan}
+            onError={(msg) => toast.warning(msg)}
+          />
         </div>
       )}
+
+      <CameraFlowScanFeedback loadingPhase={loadingPhase} />
 
       <div className="camera-flow-body">
         <section className="camera-flow-card camera-flow-book-hero mb-3">
@@ -211,7 +251,7 @@ export default function TakeBookScanner({
               title={book.title}
               isbn={book.isbn}
               coverPath={book.coverPath}
-              size={64}
+              coverSize="sheet"
             />
             <div className="min-w-0">
               <h3 className="camera-flow-book-title h6 mb-1">{book.title}</h3>
@@ -224,66 +264,52 @@ export default function TakeBookScanner({
           </div>
         </section>
 
-        {phase === 'verify' && (
+        {phase === 'verify' && nearKm != null && nearKm <= NEAR_POINT_KM && (
           <section className="camera-flow-card mb-3">
-            {nearKm != null && nearKm <= NEAR_POINT_KM ? (
-              <p className="small text-muted mb-0">Posizione verificata via GPS.</p>
-            ) : (
-              <>
-                <p className="small text-muted mb-2">
-                  Per prendere un libro serve essere nel punto: <strong>GPS attivo</strong> (entro{' '}
-                  {nearPointRadiusLabel()}) oppure <strong>cartello QR</strong>. Non ci sono altri modi.
-                </p>
-                {gpsDenied && (
-                  <p className="small text-muted mb-2">
-                    GPS non disponibile — inquadra il cartello Libery qui sotto.
-                  </p>
-                )}
-                {nearKm != null && nearKm > NEAR_POINT_KM && (
-                  <p className="small text-muted mb-2">
-                    Sei a {formatDistanceKm(nearKm)}: avvicinati (entro {nearPointRadiusLabel()}) o usa il
-                    cartello QR.
-                  </p>
-                )}
-                <button type="button" className="btn btn-libery-soft btn-sm" onClick={tryGps}>
-                  Riprova GPS
-                </button>
-              </>
-            )}
+            <p className="small text-muted mb-0">Posizione verificata via GPS.</p>
           </section>
         )}
-
-        {error && <p className="camera-flow-error">{error}</p>}
-        {loading && <p className="camera-flow-status">Elaborazione…</p>}
+        {phase === 'verify' && (nearKm == null || nearKm > NEAR_POINT_KM) && (
+          <section className="camera-flow-card mb-3">
+            <LiberyButton type="button" color="tonal" size="small" onClick={tryGps}>
+              Riprova GPS
+            </LiberyButton>
+          </section>
+        )}
 
         {phase === 'isbn' && (
           <section className="camera-flow-manual-isbn">
             <label className="camera-flow-manual-label" htmlFor="take-manual-isbn">
               Oppure digita l&apos;ISBN
             </label>
-            <div className="camera-flow-manual-row">
-              <input
+            <div className="camera-flow-manual-row align-items-start">
+              <MdTextField
                 id="take-manual-isbn"
+                label="ISBN"
                 type="text"
                 inputMode="numeric"
-                autoComplete="off"
-                className="camera-flow-manual-input"
+                autocomplete="off"
                 placeholder="9788806211778"
                 value={manualIsbn}
-                onChange={(e) => setManualIsbn(e.target.value)}
-                onKeyDown={(e) => {
+                disabled={loading}
+                style={{ flex: '1 1 auto', minWidth: 0 }}
+                onInput={(e: Event) =>
+                  setManualIsbn((e.currentTarget as HTMLElement & { value: string }).value)
+                }
+                onKeyDown={(e: KeyboardEvent) => {
                   if (e.key === 'Enter') submitManual();
                 }}
-                disabled={loading}
               />
-              <button
+              <LiberyButton
                 type="button"
-                className="btn btn-libery btn-sm"
+                color="filled"
+                size="small"
+                style={{ alignSelf: 'center' }}
                 onClick={submitManual}
                 disabled={loading || !manualIsbn.trim()}
               >
                 OK
-              </button>
+              </LiberyButton>
             </div>
           </section>
         )}

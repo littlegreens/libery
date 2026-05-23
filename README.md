@@ -42,6 +42,11 @@ npm run dev
 | `npm run dev` | Client + server in parallelo |
 | `npm run db:studio` | Prisma Studio |
 
+## Deploy produzione (Hestia / VPS)
+
+Guida passo-passo: [docs/DEPLOY-HESTIA.md](./docs/DEPLOY-HESTIA.md)  
+Esempi PM2 e Nginx: cartella `deploy/`.
+
 ## Struttura
 
 ```
@@ -49,5 +54,6 @@ libery/
 ├── BRAIN.md          # Specifica prodotto/tecnica
 ├── client/           # React + Vite + Bootstrap
 ├── server/           # Express + Prisma
+├── deploy/           # PM2 + nginx esempio
 └── docker-compose.yml
 ```

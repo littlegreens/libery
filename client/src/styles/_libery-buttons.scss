@@ -1,0 +1,109 @@
+/**
+ * Pulsanti Libery — mai CTA neri pieni.
+ * - Primario: sfondo giallo-soft / grigio chiaro, testo ink (come scheda libro `color="tonal"`).
+ * - Secondario: bordo grigio, sfondo bianco (`outlined`).
+ */
+
+$libery-btn-primary-bg: $libery-yellow-soft;
+$libery-btn-primary-bg-hover: $libery-yellow;
+$libery-btn-primary-ink: $libery-ink;
+$libery-btn-secondary-border: #d0d0d0;
+$libery-btn-secondary-bg: #ffffff;
+$libery-btn-radius: 20px;
+
+md-button.libery-btn,
+md-button {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  --md-sys-shape-corner-full: #{$libery-btn-radius};
+}
+
+// —— Primario: filled e tonal (scheda libro, CTA principali) ——
+md-button.libery-btn--primary,
+md-button[color='filled'],
+md-button:not([color]),
+md-button[color='tonal'] {
+  // Sovrascriviamo --md-sys-color-primary localmente così il componente
+  // non eredita il grigio-scuro del tema globale (#3a3a3a).
+  --md-sys-color-primary: #{$libery-btn-primary-bg};
+  --md-sys-color-on-primary: #{$libery-btn-primary-ink};
+  --md-sys-color-primary-container: #{$libery-btn-primary-bg};
+  --md-sys-color-on-primary-container: #{$libery-btn-primary-ink};
+
+  --md-filled-button-container-color: #{$libery-btn-primary-bg};
+  --md-filled-button-label-text-color: #{$libery-btn-primary-ink};
+  --md-filled-button-hover-label-text-color: #{$libery-btn-primary-ink};
+  --md-filled-button-pressed-label-text-color: #{$libery-btn-primary-ink};
+  --md-filled-button-focus-label-text-color: #{$libery-btn-primary-ink};
+  --md-filled-button-hover-state-layer-color: #{$libery-btn-primary-ink};
+  --md-filled-button-pressed-state-layer-color: #{$libery-btn-primary-ink};
+  --md-filled-button-focus-state-layer-color: #{$libery-btn-primary-ink};
+
+  --md-filled-tonal-container-color: #{$libery-btn-primary-bg};
+  --md-filled-tonal-label-text-color: #{$libery-btn-primary-ink};
+  --md-filled-tonal-hover-label-text-color: #{$libery-btn-primary-ink};
+  --md-filled-tonal-pressed-label-text-color: #{$libery-btn-primary-ink};
+  --md-filled-tonal-focus-label-text-color: #{$libery-btn-primary-ink};
+  --md-filled-tonal-hover-state-layer-color: #{$libery-btn-primary-ink};
+  --md-filled-tonal-pressed-state-layer-color: #{$libery-btn-primary-ink};
+  --md-filled-tonal-focus-state-layer-color: #{$libery-btn-primary-ink};
+}
+
+// —— Secondario: bordo grigio ——
+md-button.libery-btn--secondary,
+md-button[color='outlined'] {
+  --md-outlined-button-outline-color: #{$libery-btn-secondary-border};
+  --md-outlined-button-outline-width: 1px;
+  --md-outlined-button-container-color: #{$libery-btn-secondary-bg};
+  --md-outlined-button-label-text-color: #{$libery-btn-primary-ink};
+  --md-outlined-button-hover-label-text-color: #{$libery-btn-primary-ink};
+  --md-outlined-button-pressed-label-text-color: #{$libery-btn-primary-ink};
+  --md-outlined-button-focus-label-text-color: #{$libery-btn-primary-ink};
+  --md-outlined-button-hover-state-layer-color: #{$libery-btn-primary-ink};
+  --md-outlined-button-pressed-state-layer-color: #{$libery-btn-primary-ink};
+  --md-outlined-button-focus-state-layer-color: #{$libery-btn-primary-ink};
+}
+
+// —— Testo / link button ——
+md-button.libery-btn--text,
+md-button[color='text'] {
+  --md-text-button-label-text-color: #{$libery-btn-primary-ink};
+  --md-text-button-hover-label-text-color: #{$libery-btn-primary-ink};
+  --md-text-button-pressed-label-text-color: #{$libery-btn-primary-ink};
+  --md-text-button-focus-label-text-color: #{$libery-btn-primary-ink};
+}
+
+// Hero home su foto scura:
+// - Primario (Mappa): colore libery originale (giallo soft), testo scuro
+// - Secondario (Cerca un libro): trasparente, bordo bianco, testo bianco
+.welcome-hero__actions {
+  md-button.libery-btn--secondary,
+  md-button[color='outlined'] {
+    --md-outlined-button-container-color: transparent;
+    --md-outlined-button-outline-color: rgba(255, 255, 255, 0.85);
+    --md-outlined-button-outline-width: 1.5px;
+    --md-outlined-button-label-text-color: #ffffff;
+    --md-outlined-button-hover-label-text-color: #ffffff;
+    --md-outlined-button-pressed-label-text-color: #ffffff;
+    --md-outlined-button-focus-label-text-color: #ffffff;
+    font-weight: 600;
+  }
+}
+
+// Bootstrap legacy `.btn` se ancora presenti
+.btn-primary,
+.btn-libery-primary {
+  @include libery-button-white;
+  background-color: $libery-btn-primary-bg !important;
+  border-color: color-mix(in srgb, #{$libery-btn-secondary-border} 70%, #{$libery-btn-primary-bg}) !important;
+
+  &:hover,
+  &:focus {
+    background-color: $libery-btn-primary-bg-hover !important;
+  }
+}
+
+.btn-outline-secondary,
+.btn-libery-secondary {
+  @include libery-button-white;
+}

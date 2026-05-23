@@ -1,0 +1,121 @@
+// Riga punto in «Più vicino» (scheda libro + bottom sheet)
+
+.libery-book-list--points {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.libery-point-avail-row {
+  padding: 0.5rem 0;
+  background: var(--md-sys-color-surface, #fff);
+  max-width: 100%;
+
+  &--bordered {
+    border-bottom: 1px solid var(--md-sys-color-outline-variant, #e8e8e8);
+  }
+}
+
+.libery-point-avail-row__main {
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
+  padding: 0.1rem 0;
+  border: 0;
+  background: transparent;
+  text-align: start;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  text-decoration: none;
+  box-sizing: border-box;
+
+  &:hover {
+    opacity: 0.92;
+  }
+}
+
+.libery-point-avail-row__content {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.libery-point-avail-row__badge {
+  flex-shrink: 0;
+  margin-bottom: 0.15rem;
+}
+
+.libery-point-avail-row__title {
+  margin: 0;
+  min-width: 0;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.28;
+  color: #1a1a1a;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.libery-point-avail-row__addr {
+  margin: 0.08rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.32;
+  color: var(--md-sys-color-on-surface-variant, #5c5c5c);
+}
+
+.libery-point-avail-row__foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.libery-point-avail-row__foot-spacer {
+  flex: 1;
+}
+
+.libery-point-avail-row__distance {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.libery-point-avail-row__distance-label {
+  font-size: 0.75rem;
+  font-weight: 400;
+  text-transform: none;
+  color: var(--md-sys-color-on-surface-variant, #5c5c5c);
+}
+
+.libery-point-avail-row__distance-value {
+  font-size: 0.75rem;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  color: var(--md-sys-color-on-surface-variant, #5c5c5c);
+}
+
+.libery-point-avail-row__copies-line {
+  margin: 0;
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.32;
+  color: var(--md-sys-color-on-surface-variant, #5c5c5c);
+  text-align: end;
+  white-space: nowrap;
+}
+
+.libery-point-avail-row__copies-n {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--md-sys-color-on-surface, #1a1a1a);
+}
