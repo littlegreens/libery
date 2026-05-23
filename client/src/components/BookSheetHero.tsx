@@ -1,5 +1,5 @@
 import BookCoverThumb from '@/components/BookCoverThumb';
-import { LiberyAssistLabelChip } from '@/components/LiberyMaterialChips';
+import { LiberyGenreLabel } from '@/components/LiberyMaterialChips';
 
 export type BookSheetHeroBook = {
   title: string;
@@ -71,7 +71,7 @@ export default function BookSheetHero({ book, coverSize = 'sheet', onClick, titl
         ) : null}
         {book.genre ? (
           <div className="libery-book-sheet-meta-line libery-book-sheet-meta-line--genre">
-            <LiberyAssistLabelChip label={book.genre} />
+            <LiberyGenreLabel label={book.genre} />
           </div>
         ) : null}
         <p className="libery-book-sheet-isbn mb-0">ISBN {book.isbn}</p>

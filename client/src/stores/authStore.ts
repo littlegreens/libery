@@ -11,6 +11,7 @@ export type AuthUser = {
   role: UserRole;
   libriExtra: number;
   libriOggiUsed: number;
+  emailVerified?: boolean;
 };
 
 type AuthState = {

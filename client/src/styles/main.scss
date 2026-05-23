@@ -13,7 +13,7 @@ $libery-yellow: #f9eeac;
 $libery-yellow-soft: #fef6c8;
 $libery-surface: #ffffff;
 $libery-ink: #1a1a1a;
-$libery-ink-soft: #6b6b6b;
+$libery-ink-soft: #525252;
 $libery-border: #e8e8e8;
 $libery-accent: #1a1a1a;
 $libery-accent-hover: #000000;
@@ -563,6 +563,17 @@ body {
   }
 }
 
+// —— Libri: sezioni discover ——
+.libery-discover-section {
+  &__title {
+    color: var(--md-sys-color-on-surface, #1c1b1f);
+  }
+
+  &__sub {
+    margin-top: 0.15rem;
+  }
+}
+
 // —— Sezione 3: Contatti ——
 .welcome-contact {
   scroll-snap-align: start;
@@ -606,6 +617,20 @@ body {
     md-button {
       align-self: flex-start;
     }
+  }
+
+  &__message-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    width: 100%;
+  }
+
+  &__message-label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface-variant, #49454f);
+    padding-left: 0.25rem;
   }
 
   &__legal {
@@ -1279,6 +1304,19 @@ body {
   }
 }
 
+// Zaino / pagine senza barra mappa: bordo più leggibile sul pill search
+.backpack-page__search.libery-search-form--inline,
+.page-content .libery-search-form--inline:not(.map-search-form) {
+  .libery-material-search-host md-search {
+    min-height: 3rem;
+    box-shadow: var(--md-sys-elevation-level1);
+    border: 1.5px solid color-mix(in srgb, var(--md-sys-color-outline, #{$libery-border}) 70%, transparent);
+    --md-search-outline-width: 0;
+    --md-search-container-shape: 24px;
+    --md-search-text-field-container-shape: 24px;
+  }
+}
+
 @keyframes libery-spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
@@ -1525,6 +1563,9 @@ body {
 
   &--genre {
     margin-top: 0.25rem;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
   }
 }
 
@@ -1622,6 +1663,8 @@ body {
   gap: 0.85rem;
   align-items: flex-start;
   padding-right: 2.25rem;
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 .book-sheet-cover {
@@ -2087,17 +2130,29 @@ body {
   }
 }
 
-// Link testo pagina profilo (neri, sottolineati)
-.profile-text-link {
-  color: $libery-ink !important;
-  text-decoration: underline !important;
-  text-underline-offset: 2px;
-  font-weight: 400;
+.profile-email-banner {
+  padding: 0.85rem 1rem;
+  border-radius: 0.75rem;
+  background: var(--md-sys-color-tertiary-container, #fff8e1);
+  color: var(--md-sys-color-on-tertiary-container, #{$libery-ink});
+  border: 1px solid color-mix(in srgb, var(--md-sys-color-tertiary, #f9a825) 35%, transparent);
+}
 
-  &:hover {
-    color: $libery-ink !important;
-    opacity: 0.7;
-  }
+.profile-email-banner__title {
+  font-weight: 700;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.profile-email-banner__body {
+  margin: 0;
+  line-height: 1.4;
+  color: var(--md-sys-color-on-surface-variant, #{$libery-ink-soft});
+}
+
+.profile-network {
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid rgba($libery-ink, 0.08);
 }
 
 .profile-section-title {

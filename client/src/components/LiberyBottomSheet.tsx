@@ -1,4 +1,5 @@
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 
 export type LiberyBottomSheetProps = {
   open: boolean;
@@ -41,6 +42,8 @@ export default function LiberyBottomSheet({
 
   const [scrimVisible, setScrimVisible] = useState(false);
   const [panelAnim, setPanelAnim] = useState<PanelAnim>('off');
+
+  useFocusTrap(panelRef, open || panelAnim !== 'off');
 
   // Gestione chiusura nativa (tasto Escape, el.close() da codice esterno)
   useEffect(() => {

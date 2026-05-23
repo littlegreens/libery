@@ -28,6 +28,7 @@ export async function sendMail(opts: {
   subject: string;
   text: string;
   html?: string;
+  replyTo?: string;
 }): Promise<{ sent: boolean; previewUrl?: string }> {
   const transport = getTransporter();
   if (!transport) {
@@ -39,6 +40,7 @@ export async function sendMail(opts: {
   const info = await transport.sendMail({
     from: `"Libery" <${smtpFrom}>`,
     to: opts.to,
+    replyTo: opts.replyTo,
     subject: opts.subject,
     text: opts.text,
     html: opts.html ?? opts.text.replace(/\n/g, '<br>'),

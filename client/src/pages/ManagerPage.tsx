@@ -1,11 +1,12 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { toast } from '@/stores/toastStore';
-import { useOutletContext } from 'react-router-dom';
+import { useNavigate, useOutletContext } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { getApiError } from '@/lib/apiError';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import type { ShellOutletContext } from '@/components/AppShell';
 import { useAuthStore } from '@/stores/authStore';
+import { useAuthHydrated } from '@/hooks/useAuthHydrated';
 import LiberyLoading from '@/components/LiberyLoading';
 import PointTypeBadge from '@/components/PointTypeBadge';
 import BarcodeScanner from '@/components/BarcodeScanner';
@@ -41,10 +42,16 @@ type InventoryBook = {
   copies: number;
 };
 
+const MANAGER_ROLES = new Set(['admin', 'point_manager', 'point_staff']);
+
 export default function ManagerPage() {
   useDocumentTitle('Il mio punto');
-  const { setPageBar } = useOutletContext<ShellOutletContext>();
+  const navigate = useNavigate();
+  const { setPageBar, openAuthSheet } = useOutletContext<ShellOutletContext>();
+  const hydrated = useAuthHydrated();
+  const loggedIn = useAuthStore((s) => s.isLoggedIn());
   const myRole = useAuthStore((s) => s.user?.role);
+  const canAccess = loggedIn && myRole != null && MANAGER_ROLES.has(myRole);
   const [point, setPoint] = useState<ManagerPoint | null>(null);
   const [staff, setStaff] = useState<StaffRow[]>([]);
   const [staffEmail, setStaffEmail] = useState('');
@@ -176,7 +183,9 @@ export default function ManagerPage() {
       const { data } = await api.get<{ point: ManagerPoint }>('/manager/point');
       setPoint(data.point);
     } catch (err) {
-      setError(getApiError(err, 'Punto non disponibile'));
+      const msg = getApiError(err, 'Punto non disponibile');
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -228,10 +237,41 @@ export default function ManagerPage() {
 
   const isDirty = Object.keys(pendingCopies).length > 0;
 
+  if (!hydrated) {
+    return (
+      <div className="page-content manager-page px-3 py-3">
+        <LiberyLoading variant="page" />
+      </div>
+    );
+  }
+
+  if (!canAccess) {
+    return (
+      <div className="page-content manager-page px-3 py-4 text-center">
+        <p className="text-muted small mb-3" role="status">
+          {!loggedIn
+            ? 'Accedi con un account gestore o addetto per gestire un punto Libery.'
+            : 'Il tuo account non ha accesso a questa area.'}
+        </p>
+        <LiberyButton
+          type="button"
+          variant="primary"
+          onClick={() => (loggedIn ? navigate('/mappa') : openAuthSheet('login'))}
+        >
+          {loggedIn ? 'Vai alla mappa' : 'Accedi'}
+        </LiberyButton>
+      </div>
+    );
+  }
+
   return (
     <div className="page-content manager-page px-3 py-3">
       {loading && <LiberyLoading variant="page" />}
-      {error && <p className="camera-flow-error mb-2">{error}</p>}
+      {error && (
+        <p className="camera-flow-error mb-2" role="alert" aria-live="polite">
+          {error}
+        </p>
+      )}
 
       {point && (
         <section className="manager-point-info mb-3">

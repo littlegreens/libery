@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
-import { Link, useOutletContext } from 'react-router-dom';
+import { useNavigate, useOutletContext } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { getApiError } from '@/lib/apiError';
 import type { ShellOutletContext } from '@/components/AppShell';
@@ -23,6 +23,7 @@ type ProfileResponse = {
       slotsFree: number;
     };
     aeroplanini: Array<{ type: string; earnedAt: string }>;
+    emailVerified?: boolean;
   };
 };
 
@@ -56,6 +57,7 @@ function profileInitials(user: AuthUser | null, fallbackName: string): string {
 
 export default function ProfilePage() {
   useDocumentTitle('Profilo');
+  const navigate = useNavigate();
   const loggedIn = useAuthStore((s) => s.isLoggedIn());
   const authUser = useAuthStore((s) => s.user);
   const setAuth = useAuthStore((s) => s.setAuth);
@@ -105,8 +107,17 @@ export default function ProfilePage() {
     ])
       .then(([profileRes, backpackRes]) => {
         if (cancelled) return;
-        setProfile(profileRes.data.user);
-        setDisplayName(profileRes.data.user.displayName ?? '');
+        const u = profileRes.data.user;
+        setProfile(u);
+        setDisplayName(u.displayName ?? '');
+        const currentUser = useAuthStore.getState().user;
+        if (accessToken && refreshToken && currentUser && u.emailVerified !== undefined) {
+          setAuth({
+            accessToken,
+            refreshToken,
+            user: { ...currentUser, emailVerified: u.emailVerified },
+          });
+        }
         setStats({
           taken: backpackRes.data.taken.length,
           donated: backpackRes.data.donated.length,
@@ -133,8 +144,9 @@ export default function ProfilePage() {
   if (!loggedIn) {
     return (
       <div className="page-content px-3 py-4 text-center">
-        <LiberyButton type="button" color="outlined" size="small" onClick={() => openAuthSheet('login')}>
-          Login
+        <p className="text-muted mb-3">Accedi per vedere il tuo profilo.</p>
+        <LiberyButton type="button" color="filled" size="small" onClick={() => openAuthSheet('login')}>
+          Accedi
         </LiberyButton>
       </div>
     );
@@ -294,11 +306,33 @@ export default function ProfilePage() {
         </section>
       )}
 
-      <p className="small mb-3">
-        <Link to="/diventa-punto" className="profile-text-link">Proponi biblioteca, libreria o Corner Free</Link>
-        {' · '}
-        <Link to="/verifica-email" className="profile-text-link">Verifica email</Link>
-      </p>
+      {profile?.emailVerified === false ? (
+        <section className="profile-email-banner mb-3" aria-live="polite">
+          <p className="profile-email-banner__title mb-1">Conferma la tua email</p>
+          <p className="profile-email-banner__body small mb-2">
+            Apri il link che ti abbiamo inviato a <strong>{authUser?.email}</strong>. Senza verifica alcune
+            funzioni restano limitate.
+          </p>
+          <LiberyButton
+            type="button"
+            color="tonal"
+            size="small"
+            onClick={() => navigate('/verifica-email')}
+          >
+            Reinvia link o inserisci codice
+          </LiberyButton>
+        </section>
+      ) : null}
+
+      <section className="profile-network mb-3">
+        <h2 className="profile-section-title">Rete Libery</h2>
+        <p className="small text-muted mb-2">
+          Hai una biblioteca, una libreria o un angolo per libri? Proponilo alla community.
+        </p>
+        <LiberyButton type="button" color="outlined" className="w-100" onClick={() => navigate('/diventa-punto')}>
+          Proponi un punto
+        </LiberyButton>
+      </section>
 
       <form ref={formRef} className="profile-form" onSubmit={handleSave}>
         <h2 className="profile-section-title">Account</h2>

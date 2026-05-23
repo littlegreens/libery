@@ -1,7 +1,10 @@
-import { FormEvent, useEffect, useRef, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
+import { getApiError } from '@/lib/apiError';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { LiberyButton, MdCard, MdTextField } from '@/lib/material/md-react';
 import { useMdNativeFormBridge } from '@/lib/useMdNativeFormBridge';
+import { toast } from '@/stores/toastStore';
 
 type UserRow = {
   id: string;
@@ -14,10 +17,9 @@ type UserRow = {
 };
 
 export default function AdminUsers() {
+  useDocumentTitle('Utenti admin');
   const [users, setUsers] = useState<UserRow[]>([]);
   const [q, setQ] = useState('');
-  const [msg, setMsg] = useState('');
-  const [msgIsError, setMsgIsError] = useState(false);
   const createFormRef = useRef<HTMLFormElement>(null);
   useMdNativeFormBridge(createFormRef);
   const [form, setForm] = useState({
@@ -27,45 +29,51 @@ export default function AdminUsers() {
     role: 'user',
   });
 
-  async function load() {
-    const { data } = await api.get('/admin/users', { params: { q: q || undefined } });
-    setUsers(data.users);
-  }
+  const load = useCallback(async () => {
+    try {
+      const { data } = await api.get('/admin/users', { params: { q: q || undefined } });
+      setUsers(data.users);
+    } catch (err) {
+      toast.error(getApiError(err, 'Caricamento utenti non riuscito'));
+    }
+  }, [q]);
 
   useEffect(() => {
-    load();
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- caricamento iniziale
   }, []);
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
-    setMsg('');
-    setMsgIsError(false);
     try {
       await api.post('/admin/users', form);
       setForm({ email: '', password: '', displayName: '', role: 'user' });
-      setMsg('Utente creato');
-      load();
-    } catch {
-      setMsgIsError(true);
-      setMsg('Errore creazione utente');
+      toast.success('Utente creato');
+      void load();
+    } catch (err) {
+      toast.error(getApiError(err, 'Creazione utente non riuscita'));
     }
   }
 
   async function toggleActive(id: string, isActive: boolean) {
-    await api.put(`/admin/users/${id}/status`, { isActive: !isActive });
-    load();
+    try {
+      await api.put(`/admin/users/${id}/status`, { isActive: !isActive });
+      toast.success(isActive ? 'Utente sospeso' : 'Utente riattivato');
+      void load();
+    } catch (err) {
+      toast.error(getApiError(err, 'Aggiornamento stato non riuscito'));
+    }
   }
 
   async function changeRole(id: string, role: string) {
-    setMsg('');
-    setMsgIsError(false);
     try {
       await api.put(`/admin/users/${id}/role`, { role });
-      setMsg('Ruolo aggiornato');
-      load();
-    } catch {
-      setMsgIsError(true);
-      setMsg('Solo admin può cambiare ruoli; responsabile richiede un punto assegnato');
+      toast.success('Ruolo aggiornato');
+      void load();
+    } catch (err) {
+      toast.error(
+        getApiError(err, 'Solo admin può cambiare ruoli; responsabile richiede un punto assegnato'),
+      );
     }
   }
 
@@ -79,15 +87,6 @@ export default function AdminUsers() {
 
       <MdCard type="elevated" className="mb-4" style={{ padding: '1rem' }}>
         <h2 className="h6 fw-bold mb-3">Nuovo utente</h2>
-        {msg && (
-          <div
-            className={`small libery-inline-alert mb-3 ${
-              msgIsError ? 'libery-inline-alert-error' : 'libery-inline-alert-success'
-            }`}
-          >
-            {msg}
-          </div>
-        )}
         <form ref={createFormRef} className="libery-admin-fields mb-3" onSubmit={handleCreate}>
           <div className="libery-admin-field">
             <MdTextField

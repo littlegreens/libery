@@ -20,6 +20,7 @@
     "seed:test-data": "tsx src/scripts/seed-test-data.ts",
     "seed:italia": "tsx src/scripts/seed-italia.ts",
     "seed:lazio": "tsx src/scripts/seed-lazio.ts",
+    "seed:activity": "tsx src/scripts/seed-activity.ts",
     "assign:manager:anzio": "tsx src/scripts/assign-manager-anzio.ts",
     "assign:managers": "tsx src/scripts/assign-managers.ts",
     "enrich:covers": "tsx src/scripts/enrich-book-covers.ts",

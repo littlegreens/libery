@@ -1,7 +1,10 @@
-import { FormEvent, useEffect, useRef, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
+import { getApiError } from '@/lib/apiError';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { LiberyButton, MdCard, MdTextField } from '@/lib/material/md-react';
 import { useMdNativeFormBridge } from '@/lib/useMdNativeFormBridge';
+import { toast } from '@/stores/toastStore';
 
 type PointRow = {
   id: string;
@@ -14,11 +17,10 @@ type PointRow = {
 };
 
 export default function AdminPoints() {
+  useDocumentTitle('Punti admin');
   const [points, setPoints] = useState<PointRow[]>([]);
   const [q, setQ] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [msg, setMsg] = useState('');
-  const [msgIsError, setMsgIsError] = useState(false);
 
   const createFormRef = useRef<HTMLFormElement>(null);
   useMdNativeFormBridge(createFormRef);
@@ -31,18 +33,23 @@ export default function AdminPoints() {
     managerEmail: '',
   });
 
-  async function load() {
-    const { data } = await api.get('/admin/points', {
-      params: {
-        q: q || undefined,
-        status: statusFilter || undefined,
-      },
-    });
-    setPoints(data.points);
-  }
+  const load = useCallback(async () => {
+    try {
+      const { data } = await api.get('/admin/points', {
+        params: {
+          q: q || undefined,
+          status: statusFilter || undefined,
+        },
+      });
+      setPoints(data.points);
+    } catch (err) {
+      toast.error(getApiError(err, 'Caricamento punti non riuscito'));
+    }
+  }, [q, statusFilter]);
 
   useEffect(() => {
-    load();
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- caricamento iniziale
   }, []);
 
   function cf(patch: Partial<typeof create>) {
@@ -51,8 +58,6 @@ export default function AdminPoints() {
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
-    setMsg('');
-    setMsgIsError(false);
     try {
       await api.post('/admin/points', {
         name: create.name.trim(),
@@ -62,17 +67,21 @@ export default function AdminPoints() {
         managerEmail: create.managerEmail.trim() || undefined,
       });
       setCreate({ name: '', type: 'biblioteca', city: '', address: '', managerEmail: '' });
-      setMsg('Punto creato e approvato');
-      load();
-    } catch {
-      setMsgIsError(true);
-      setMsg('Errore creazione punto');
+      toast.success('Punto creato e approvato');
+      void load();
+    } catch (err) {
+      toast.error(getApiError(err, 'Creazione punto non riuscita'));
     }
   }
 
   async function setStatus(id: string, status: string) {
-    await api.put(`/admin/points/${id}/status`, { status });
-    load();
+    try {
+      await api.put(`/admin/points/${id}/status`, { status });
+      toast.success('Stato punto aggiornato');
+      void load();
+    } catch (err) {
+      toast.error(getApiError(err, 'Aggiornamento non riuscito'));
+    }
   }
 
   return (
@@ -81,15 +90,6 @@ export default function AdminPoints() {
 
       <MdCard type="elevated" className="mb-4" style={{ padding: '1rem' }}>
         <h2 className="h6 fw-bold mb-3">Nuovo punto (approvato)</h2>
-        {msg && (
-          <div
-            className={`small libery-inline-alert mb-3 ${
-              msgIsError ? 'libery-inline-alert-error' : 'libery-inline-alert-success'
-            }`}
-          >
-            {msg}
-          </div>
-        )}
         <form ref={createFormRef} className="libery-admin-fields mb-3" onSubmit={handleCreate}>
           <div className="libery-admin-field">
             <MdTextField

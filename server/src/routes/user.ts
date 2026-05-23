@@ -11,6 +11,7 @@ import {
 } from '../lib/uploads.js';
 import { computeSlots, getUserSlotSummary } from '../lib/bookSlots.js';
 import { authenticate, type AuthRequest } from '../middleware/auth.js';
+import { isEmailVerified } from '../lib/emailVerification.js';
 
 const router = Router();
 
@@ -32,6 +33,7 @@ router.get('/profile', async (req: AuthRequest, res, next) => {
         role: true,
         libriExtra: true,
         libriOggiUsed: true,
+        emailVerifiedAt: true,
         createdAt: true,
         aeroplanini: {
           select: { type: true, earnedAt: true },
@@ -53,6 +55,7 @@ router.get('/profile', async (req: AuthRequest, res, next) => {
         libriExtra: user.libriExtra,
         libriOggiUsed: user.libriOggiUsed,
         createdAt: user.createdAt,
+        emailVerified: isEmailVerified(user),
         slots:
           (await getUserSlotSummary(userId)) ??
           {

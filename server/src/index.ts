@@ -17,6 +17,7 @@ import managerRouter from './routes/manager.js';
 import notificationsRouter from './routes/notifications.js';
 import reportsRouter from './routes/reports.js';
 import pointRequestsRouter from './routes/pointRequests.js';
+import contactRouter from './routes/contact.js';
 
 const app = express();
 const port = Number(process.env.PORT) || 3001;
@@ -81,6 +82,7 @@ app.use('/api/manager', managerRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/point-requests', pointRequestsRouter);
+app.use('/api/contact', contactRouter);
 
 app.use(errorHandler);
 

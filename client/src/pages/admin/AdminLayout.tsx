@@ -1,6 +1,9 @@
 import { Link, Outlet, Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
+import { useAuthHydrated } from '@/hooks/useAuthHydrated';
+import LiberyLoading from '@/components/LiberyLoading';
 import { LiberyButton, MdNavigateButton } from '@/lib/material/md-react';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 const nav = [
   { to: '/admin', end: true, label: 'Dashboard' },
@@ -15,23 +18,40 @@ function isNavActive(pathname: string, to: string, end?: boolean) {
 }
 
 export default function AdminLayout() {
+  useDocumentTitle('Admin');
   const location = useLocation();
+  const hydrated = useAuthHydrated();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
 
-  if (!user || user.role !== 'admin') {
-    return <Navigate to="/entra" replace />;
+  if (!hydrated) {
+    return (
+      <div className="admin-layout min-vh-100 d-flex align-items-center justify-content-center">
+        <LiberyLoading variant="page" label="Caricamento…" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/home" replace state={{ from: location.pathname }} />;
+  }
+
+  if (user.role !== 'admin') {
+    return <Navigate to="/mappa" replace />;
   }
 
   return (
     <div className="admin-layout min-vh-100">
-      <nav className="admin-nav px-3 py-2 d-flex flex-wrap align-items-center gap-2">
+      <nav className="admin-nav px-3 py-2 d-flex flex-wrap align-items-center gap-2" aria-label="Admin">
+        <MdNavigateButton to="/home" color="text" size="small">
+          ← App
+        </MdNavigateButton>
         <Link
-          to="/"
+          to="/admin"
           className="text-decoration-none fw-bold"
           style={{ color: 'var(--md-sys-color-on-surface)' }}
         >
-          Libery Admin
+          Admin
         </Link>
         {nav.map((item) => (
           <MdNavigateButton

@@ -5,7 +5,9 @@ import { api } from '@/lib/api';
 import type { ShellOutletContext } from '@/components/AppShell';
 import type { PointType } from '@/types/point';
 import { LiberyButton, MdTextField } from '@/lib/material/md-react';
+import { getApiError } from '@/lib/apiError';
 import { useAuthStore } from '@/stores/authStore';
+import { toast } from '@/stores/toastStore';
 
 type RequestRow = {
   id: string;
@@ -25,7 +27,6 @@ export default function BecomePointPage() {
   const [contactEmail, setContactEmail] = useState('');
   const [notes, setNotes] = useState('');
   const [mine, setMine] = useState<RequestRow[]>([]);
-  const [feedback, setFeedback] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -48,7 +49,6 @@ export default function BecomePointPage() {
       return;
     }
     setLoading(true);
-    setFeedback('');
     try {
       await api.post('/point-requests', {
         pointType,
@@ -58,7 +58,7 @@ export default function BecomePointPage() {
         contactEmail: contactEmail.trim() || undefined,
         notes: notes.trim() || undefined,
       });
-      setFeedback('Richiesta inviata. L\'admin la esaminerà a breve.');
+      toast.success('Richiesta inviata. L\'admin la esaminerà a breve.');
       setName('');
       setNotes('');
       const { data } = await api.get<{ requests: RequestRow[] }>('/point-requests/mine');
@@ -67,12 +67,12 @@ export default function BecomePointPage() {
       if (axios.isAxiosError(err)) {
         const data = err.response?.data as { error?: string; code?: string };
         if (data?.code === 'EMAIL_NOT_VERIFIED') {
-          setFeedback('Verifica prima la tua email (Profilo o link ricevuto).');
+          toast.warning('Verifica prima la tua email (Profilo o link ricevuto).');
         } else {
-          setFeedback(data?.error ?? 'Invio non riuscito');
+          toast.error(data?.error ?? getApiError(err, 'Invio non riuscito'));
         }
       } else {
-        setFeedback('Invio non riuscito');
+        toast.error(getApiError(err, 'Invio non riuscito'));
       }
     } finally {
       setLoading(false);
@@ -145,10 +145,6 @@ export default function BecomePointPage() {
               setNotes((e.currentTarget as HTMLElement & { value: string }).value)
             }
           />
-
-          {feedback ? (
-            <div className="libery-inline-alert libery-inline-alert-info small">{feedback}</div>
-          ) : null}
 
           <LiberyButton type="button" color="filled" disabled={loading} onClick={() => void handleSubmit({ preventDefault: () => {} } as FormEvent)}>
             {loading ? 'Invio…' : 'Invia richiesta'}

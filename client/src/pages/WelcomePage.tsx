@@ -3,6 +3,8 @@ import { useNavigate, useOutletContext } from 'react-router-dom';
 import { LiberyButton, MdTextField } from '@/lib/material/md-react';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
+import { api } from '@/lib/api';
+import { getApiError } from '@/lib/apiError';
 import type { ShellOutletContext } from '@/components/AppShell';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
@@ -26,6 +28,12 @@ const WELCOME_STEPS = [
   },
 ] as const;
 
+const EMPTY_CONTACT = { nome: '', email: '', messaggio: '' };
+
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
 export default function WelcomePage() {
   useDocumentTitle('Home');
   const navigate = useNavigate();
@@ -34,18 +42,48 @@ export default function WelcomePage() {
 
   const chiSiamoRef = useRef<HTMLElement>(null);
   const contattiRef = useRef<HTMLElement>(null);
+  const contactFormRef = useRef<HTMLFormElement>(null);
 
-  const [contactForm, setContactForm] = useState({ nome: '', email: '', messaggio: '' });
+  const [contactForm, setContactForm] = useState(EMPTY_CONTACT);
+  const [sending, setSending] = useState(false);
 
   function scrollTo(ref: React.RefObject<HTMLElement | null>) {
     ref.current?.scrollIntoView({ behavior: 'smooth' });
   }
 
-  function handleContact(e: FormEvent) {
+  async function handleContact(e: FormEvent) {
     e.preventDefault();
-    // TODO: collegare a un endpoint /api/contact quando disponibile
-    setContactForm({ nome: '', email: '', messaggio: '' });
-    toast.success('Messaggio inviato. Ti risponderemo il prima possibile.');
+    const nome = contactForm.nome.trim();
+    const email = contactForm.email.trim();
+    const messaggio = contactForm.messaggio.trim();
+
+    if (!nome) {
+      toast.warning('Inserisci il nome');
+      return;
+    }
+    if (!email) {
+      toast.warning('Inserisci l\'email');
+      return;
+    }
+    if (!isValidEmail(email)) {
+      toast.warning('Email non valida');
+      return;
+    }
+    if (!messaggio) {
+      toast.warning('Inserisci un messaggio');
+      return;
+    }
+
+    setSending(true);
+    try {
+      await api.post('/contact', { name: nome, email, message: messaggio });
+      setContactForm(EMPTY_CONTACT);
+      toast.success('Messaggio inviato. Ti risponderemo il prima possibile.');
+    } catch (err) {
+      toast.error(getApiError(err, 'Invio non riuscito'));
+    } finally {
+      setSending(false);
+    }
   }
 
   return (
@@ -151,13 +189,17 @@ export default function WelcomePage() {
             Vuoi proporre un nuovo punto? Hai domande o suggerimenti? Siamo qui.
           </p>
 
-          <form className="welcome-contact__form" onSubmit={handleContact}>
+          <form
+            ref={contactFormRef}
+            className="welcome-contact__form libery-field-stack"
+            onSubmit={(e) => void handleContact(e)}
+            noValidate
+          >
             <MdTextField
               style={{ width: '100%' }}
               label="Nome"
               type="text"
               value={contactForm.nome}
-              required
               onInput={(e: Event) =>
                 setContactForm((f) => ({
                   ...f,
@@ -170,7 +212,6 @@ export default function WelcomePage() {
               label="Email"
               type="email"
               value={contactForm.email}
-              required
               onInput={(e: Event) =>
                 setContactForm((f) => ({
                   ...f,
@@ -178,21 +219,32 @@ export default function WelcomePage() {
                 }))
               }
             />
-            <MdTextField
-              style={{ width: '100%' }}
-              label="Messaggio"
-              type="text"
-              value={contactForm.messaggio}
-              required
-              onInput={(e: Event) =>
-                setContactForm((f) => ({
-                  ...f,
-                  messaggio: (e.currentTarget as HTMLElement & { value: string }).value,
-                }))
-              }
-            />
-            <LiberyButton type="submit" variant="primary">
-              Invia
+            <div className="welcome-contact__message-field">
+              <label htmlFor="welcome-contact-message" className="welcome-contact__message-label">
+                Messaggio
+              </label>
+              <textarea
+                id="welcome-contact-message"
+                className="libery-field-textarea"
+                rows={5}
+                value={contactForm.messaggio}
+                disabled={sending}
+                aria-required="true"
+                onChange={(e) =>
+                  setContactForm((f) => ({
+                    ...f,
+                    messaggio: e.target.value,
+                  }))
+                }
+              />
+            </div>
+            <LiberyButton
+              type="button"
+              variant="primary"
+              disabled={sending}
+              onClick={() => contactFormRef.current?.requestSubmit()}
+            >
+              {sending ? 'Invio…' : 'Invia'}
             </LiberyButton>
           </form>
 

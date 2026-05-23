@@ -4,6 +4,7 @@ import { useGpsDistanceSnackbar } from '@/hooks/useGpsDistanceSnackbar';
 import { LiberyButton, MdCard, MdIcon, MdIconButton } from '@/lib/material/md-react';
 import { formatDistanceKm, haversineKm } from '@/lib/geo';
 import PointTypeBadge from '@/components/PointTypeBadge';
+import { LiberyGenreLabel } from '@/components/LiberyMaterialChips';
 import type { BookSummary } from '@/types/book';
 import type { MapPoint } from '@/types/point';
 import type { PointType } from '@/types/point';
@@ -103,11 +104,12 @@ export default function BookSheet({
               {book.title}
             </Link>
             {book.author ? <p className="book-sheet-author">{book.author}</p> : null}
-            {(book.year || book.genre) && (
-              <p className="book-sheet-meta">
-                {[book.year, book.genre].filter(Boolean).join(' · ')}
-              </p>
-            )}
+            {book.year ? <p className="book-sheet-meta">{book.year}</p> : null}
+            {book.genre ? (
+              <div className="libery-book-sheet-meta-line libery-book-sheet-meta-line--genre">
+                <LiberyGenreLabel label={book.genre} />
+              </div>
+            ) : null}
             <p className="book-sheet-isbn">ISBN {book.isbn}</p>
           </div>
         </div>

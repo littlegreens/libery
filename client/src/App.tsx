@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom';
+import { Navigate, Routes, Route } from 'react-router-dom';
 import AppShell from '@/components/AppShell';
 import RootRedirect from '@/components/RootRedirect';
 import AuthPage from '@/pages/AuthPage';
@@ -17,6 +17,7 @@ import AdminRequests from '@/pages/admin/AdminRequests';
 import ManagerPage from '@/pages/ManagerPage';
 import VerifyEmailPage from '@/pages/VerifyEmailPage';
 import BecomePointPage from '@/pages/BecomePointPage';
+import NotFoundPage from '@/components/NotFoundPage';
 
 export default function App() {
   return (
@@ -36,14 +37,16 @@ export default function App() {
         <Route path="/home" element={<WelcomePage />} />
         <Route path="/mappa" element={<MapPage />} />
         <Route path="/libri" element={<SearchBooksPage />} />
-        <Route path="/cerca" element={<SearchBooksPage />} />
+        <Route path="/cerca" element={<Navigate to="/libri" replace />} />
         <Route path="/zaino" element={<BackpackPage />} />
         <Route path="/profilo" element={<ProfilePage />} />
         <Route path="/punto/:id" element={<PointPage />} />
         <Route path="/libro/:id" element={<BookPage />} />
         <Route path="/gestore" element={<ManagerPage />} />
         <Route path="/diventa-punto" element={<BecomePointPage />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Route>
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 }

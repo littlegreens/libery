@@ -23,8 +23,8 @@ export function labelForPath(pathname: string): BackTarget {
   if (pathname === '/' || pathname === '/mappa' || pathname.startsWith('/mappa')) {
     return { to: '/mappa', label: 'Torna alla mappa' };
   }
-  if (pathname.startsWith('/cerca')) {
-    return { to: pathname, label: 'Torna alla ricerca' };
+  if (pathname.startsWith('/cerca') || pathname.startsWith('/libri')) {
+    return { to: '/libri', label: 'Torna ai libri' };
   }
   if (pathname.startsWith('/zaino')) {
     return { to: '/zaino', label: 'Torna allo zaino' };

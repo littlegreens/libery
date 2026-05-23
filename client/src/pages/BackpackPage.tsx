@@ -13,7 +13,7 @@ import { useFavoritesStore } from '@/stores/favoritesStore';
 import { toast } from '@/stores/toastStore';
 import { useSlotsStore } from '@/stores/slotsStore';
 import LiberyNumChip from '@/components/LiberyNumChip';
-import { MdNavigateButton } from '@/lib/material/md-react';
+import { LiberyButton } from '@/lib/material/md-react';
 
 function matchesSearch(q: string, title: string, author: string | null | undefined): boolean {
   if (!q) return true;
@@ -69,7 +69,7 @@ function pointSubtitle(point: PointLite, date: string, prefix: string) {
 
 export default function BackpackPage() {
   useDocumentTitle('Zaino');
-  const { setPageBar } = useOutletContext<ShellOutletContext>();
+  const { setPageBar, openAuthSheet } = useOutletContext<ShellOutletContext>();
   const loggedIn = useAuthStore((s) => s.isLoggedIn());
   const [tab, setTab] = useState<BackpackTab>('taken');
   const [search, setSearch] = useState('');
@@ -142,10 +142,10 @@ export default function BackpackPage() {
   if (!loggedIn) {
     return (
       <div className="page-content px-3 py-4 text-center">
-        <p className="text-muted mb-3">Serve un account Libery.</p>
-        <MdNavigateButton to="/entra" color="outlined" size="small">
-          Login
-        </MdNavigateButton>
+        <p className="text-muted mb-3">Accedi per vedere libri ricevuti, donati e preferiti.</p>
+        <LiberyButton type="button" color="filled" size="small" onClick={() => openAuthSheet('login')}>
+          Accedi
+        </LiberyButton>
       </div>
     );
   }
@@ -188,12 +188,15 @@ export default function BackpackPage() {
         </button>
       </div>
 
-      <LiberyOutlinedSearchField
-        label="Cerca titolo o autore…"
-        value={search}
-        onValueChange={setSearch}
-        className="mb-3 w-100"
-      />
+      <div className="libery-search-form libery-search-form--inline backpack-page__search mb-3">
+        <LiberyOutlinedSearchField
+          label="Cerca"
+          placeholder="Titolo o autore…"
+          value={search}
+          onValueChange={setSearch}
+          className="libery-search-field w-100"
+        />
+      </div>
 
       {loading && tab !== 'favorites' && <LiberyLoading variant="inline" />}
 

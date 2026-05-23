@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
+import { getApiError } from '@/lib/apiError';
 import { MdCard } from '@/lib/material/md-react';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
@@ -11,16 +12,31 @@ type Stats = {
 };
 
 export default function AdminDashboard() {
-  useDocumentTitle('Admin');
+  useDocumentTitle('Dashboard admin');
   const [stats, setStats] = useState<Stats | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.get('/admin/stats').then((r) => setStats(r.data));
+    const ac = new AbortController();
+    setError(null);
+    api
+      .get('/admin/stats', { signal: ac.signal })
+      .then((r) => setStats(r.data))
+      .catch((err) => {
+        if (ac.signal.aborted) return;
+        setError(getApiError(err, 'Impossibile caricare le statistiche'));
+      });
+    return () => ac.abort();
   }, []);
 
   return (
     <div>
       <h1 className="h4 fw-bold mb-4">Dashboard</h1>
+      {error ? (
+        <p className="text-danger small mb-3" role="alert" aria-live="polite">
+          {error}
+        </p>
+      ) : null}
       <div className="libery-stats-grid">
         {[
           { label: 'Utenti', value: stats?.users },

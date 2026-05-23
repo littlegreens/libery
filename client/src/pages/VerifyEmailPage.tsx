@@ -114,7 +114,7 @@ export default function VerifyEmailPage() {
       </form>
 
       <p className="mt-4 small">
-        <Link to="/entra">Vai al login</Link>
+        <Link to="/home">Torna alla home</Link>
       </p>
     </div>
   );

@@ -135,7 +135,7 @@ export default function AppShell() {
     logout();
     setDrawerOpen(false);
     setOverflowMenuOpen(false);
-    navigate('/');
+    navigate('/home');
   }
 
   useEffect(() => {
@@ -359,7 +359,7 @@ export default function AppShell() {
           </md-icon-button>
         </div>
 
-        <nav className="libery-sidebar-nav px-2 pb-2">
+        <nav className="libery-sidebar-nav px-2 pb-2" aria-label="Navigazione principale">
           <md-list onClick={onNavListClick}>
             {drawerNavItems.map((item) => {
               const active = pathMatches(item.to, item.end, pathname);

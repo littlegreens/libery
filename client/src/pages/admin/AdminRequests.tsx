@@ -1,6 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
+import { getApiError } from '@/lib/apiError';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { LiberyButton, MdCard, MdTextField } from '@/lib/material/md-react';
+import { toast } from '@/stores/toastStore';
 
 type RequestRow = {
   id: string;
@@ -14,48 +17,56 @@ type RequestRow = {
 };
 
 export default function AdminRequests() {
+  useDocumentTitle('Richieste punti admin');
   const [requests, setRequests] = useState<RequestRow[]>([]);
   const [filter, setFilter] = useState('pending');
   const [note, setNote] = useState<Record<string, string>>({});
-  const [feedback, setFeedback] = useState('');
 
-  async function load() {
-    const { data } = await api.get('/admin/requests', { params: { status: filter } });
-    setRequests(data.requests);
-  }
-
-  useEffect(() => {
-    load();
+  const load = useCallback(async () => {
+    try {
+      const { data } = await api.get('/admin/requests', { params: { status: filter } });
+      setRequests(data.requests);
+    } catch (err) {
+      toast.error(getApiError(err, 'Caricamento richieste non riuscito'));
+    }
   }, [filter]);
 
+  useEffect(() => {
+    void load();
+  }, [load]);
+
   async function approve(id: string) {
-    setFeedback('');
     try {
       const { data } = await api.post(`/admin/requests/${id}/approve`, {
         adminNote: note[id],
         managerEmail: note[`${id}-email`] || undefined,
       });
       const creds = data.managerCredentials;
-      setFeedback(
+      toast.success(
         creds
           ? `Approvato. Gestore: ${creds.email} / password temporanea: ${creds.temporaryPassword}`
           : 'Richiesta approvata',
+        { duration: creds ? 10000 : 4000 },
       );
-      load();
-    } catch {
-      setFeedback('Errore approvazione — verifica email gestore');
+      void load();
+    } catch (err) {
+      toast.error(getApiError(err, 'Approvazione non riuscita — verifica email gestore'));
     }
   }
 
   async function reject(id: string) {
     const adminNote = note[id];
     if (!adminNote?.trim()) {
-      setFeedback('Inserisci una nota per il rifiuto');
+      toast.warning('Inserisci una nota per il rifiuto');
       return;
     }
-    await api.post(`/admin/requests/${id}/reject`, { adminNote });
-    setFeedback('Richiesta rifiutata');
-    load();
+    try {
+      await api.post(`/admin/requests/${id}/reject`, { adminNote });
+      toast.success('Richiesta rifiutata');
+      void load();
+    } catch (err) {
+      toast.error(getApiError(err, 'Rifiuto non riuscito'));
+    }
   }
 
   return (
@@ -76,10 +87,10 @@ export default function AdminRequests() {
         ))}
       </div>
 
-      {feedback && <div className="small libery-inline-alert libery-inline-alert-info mb-3">{feedback}</div>}
-
       {requests.length === 0 ? (
-        <p className="text-muted">Nessuna richiesta in questa categoria.</p>
+        <p className="text-muted" role="status">
+          Nessuna richiesta in questa categoria.
+        </p>
       ) : (
         <div className="d-flex flex-column gap-3">
           {requests.map((r) => (
@@ -88,7 +99,8 @@ export default function AdminRequests() {
                 <div>
                   <h2 className="h6 fw-bold mb-1">{r.name}</h2>
                   <p className="small text-muted mb-0">
-                    {r.pointType} · {r.city ?? '—'} · {new Date(r.createdAt).toLocaleDateString('it-IT')}
+                    {r.pointType} · {r.city ?? '—'} ·{' '}
+                    {new Date(r.createdAt).toLocaleDateString('it-IT')}
                   </p>
                 </div>
                 <span className="libery-badge align-self-start">{r.status}</span>
@@ -126,10 +138,10 @@ export default function AdminRequests() {
                     }
                   />
                   <div className="d-flex gap-2 flex-wrap mt-2">
-                    <LiberyButton type="button" color="filled" size="small" onClick={() => approve(r.id)}>
-                      Approva (OK)
+                    <LiberyButton type="button" color="filled" size="small" onClick={() => void approve(r.id)}>
+                      Approva
                     </LiberyButton>
-                    <LiberyButton type="button" color="outlined" size="small" onClick={() => reject(r.id)}>
+                    <LiberyButton type="button" color="outlined" size="small" onClick={() => void reject(r.id)}>
                       Rifiuta
                     </LiberyButton>
                   </div>

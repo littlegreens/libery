@@ -60,3 +60,22 @@
   --md-assist-chip-container-color: var(--md-sys-color-surface-container-high, #ece6f0);
   --md-assist-chip-label-text-color: var(--md-sys-color-on-surface, #1a1a1a);
 }
+
+/* Genere: chip-like, max 2 righe poi ellissi (no scroll orizzontale) */
+.libery-genre-label {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 0.25rem 0.65rem;
+  border-radius: 8px;
+  background: var(--md-sys-color-surface-container-high, #ece6f0);
+  color: var(--md-sys-color-on-surface, #1a1a1a);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.35;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}

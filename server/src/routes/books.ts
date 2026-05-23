@@ -7,6 +7,7 @@ import { isValidCoverUrl, pickCoverUrlSync } from '../lib/coverPick.js';
 import { isTrustedDbBook } from '../lib/bookMetadataQuality.js';
 import { findBookByIsbn, resolveBookByIsbn, toBookDto } from '../services/bookCatalog.js';
 import type { BookDto } from '../services/bookCatalog.js';
+import { getDiscoverPayload } from '../lib/bookDiscover.js';
 
 function bookDtoWithCover(dto: BookDto): BookDto {
   const coverPath = isValidCoverUrl(dto.coverPath)
@@ -16,6 +17,25 @@ function bookDtoWithCover(dto: BookDto): BookDto {
 }
 
 const router = Router();
+
+const discoverQuerySchema = z.object({
+  lat: z.coerce.number().min(-90).max(90).optional(),
+  lng: z.coerce.number().min(-180).max(180).optional(),
+});
+
+/** Sezioni Libri: vicini, più scambiati, più amati (3 titoli ciascuna). */
+router.get('/discover', async (req, res, next) => {
+  try {
+    const q = discoverQuerySchema.parse(req.query);
+    const lat = q.lat;
+    const lng = q.lng;
+    const hasGps = lat != null && lng != null;
+    const payload = await getDiscoverPayload(hasGps ? lat : undefined, hasGps ? lng : undefined);
+    res.json(payload);
+  } catch (e) {
+    next(e);
+  }
+});
 
 router.get('/search', async (req, res, next) => {
   try {
