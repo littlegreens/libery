@@ -1449,6 +1449,16 @@ body {
     animation: libery-bs-leave 220ms cubic-bezier(0.3, 0, 0.8, 0.15) forwards;
   }
 
+  &--dragging {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  &--snap-back {
+    animation: none !important;
+    transition: transform 220ms cubic-bezier(0.2, 0, 0, 1);
+  }
+
   &--preview {
     height: 60dvh;
     max-height: 60dvh;
@@ -1457,6 +1467,10 @@ body {
   &--qr {
     height: min(72dvh, 580px);
     max-height: min(72dvh, 580px);
+  }
+
+  &--auth {
+    max-height: min(92dvh, 720px);
   }
 
   border-radius: var(--md-sys-shape-corner-extra-large, 28px)
@@ -1488,10 +1502,27 @@ body {
   background: color-mix(in srgb, var(--md-sys-color-on-surface-variant, #{$libery-ink-soft}) 35%, transparent);
 }
 
+.libery-bottom-sheet-heading-wrap {
+  flex-shrink: 0;
+  padding: 0 1rem 0.5rem;
+}
+
 .libery-bottom-sheet-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
+.libery-auth-sheet {
+  padding: 0 1rem calc(1.25rem + env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+}
+
+.libery-auth-sheet-title {
+  color: var(--md-sys-color-on-surface, #{$libery-ink});
 }
 
 .libery-book-sheet {

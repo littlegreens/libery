@@ -1,144 +1,168 @@
-import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
+/**
+ * Bottom sheet modale unificato (libri, QR, auth).
+ * Non modificare senza test su: BookSearchBottomSheet, UserPickupQrSheet,
+ * UserLeaveQrSheet, AuthBottomSheet.
+ */
+import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
 
 export type LiberyBottomSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Titolo sintetico per screen reader (`aria-label`). */
+  /** Titolo per screen reader (`aria-label` sul dialog). */
   title: string;
-  /** Contenuto area scrollabile */
+  /** Contenuto area scrollabile. */
   children: ReactNode;
-  /** Classe extra sul pannello (es. `libery-bottom-sheet-panel--preview` = 60% altezza). */
+  /** Classe extra sul pannello (es. `--preview`, `--qr`, `--auth`). */
   panelClass?: string;
+  /** Titolo visibile sopra il contenuto (opzionale, es. login). */
+  heading?: ReactNode;
 };
 
-const PANEL_MS = 280;
-const DISMISS_DRAG_PX = 80;
+const PANEL_MS = 260;
+const SNAP_MS = 220;
+const DISMISS_DRAG_PX = 72;
 
-type PanelAnim = 'off' | 'open' | 'leaving';
+type PanelPhase = 'closed' | 'entering' | 'open' | 'leaving';
 
-/**
- * Bottom sheet modale (native `<dialog>`).
- *
- * Animazione via @keyframes: la `backwards fill` assicura che il pannello
- * parta sempre da translateY(100%) prima della prima paint, senza alcun
- * trucco di timing JS (RAF, setTimeout, forceReflow).
- *
- * Chiusura: scrim, Escape, swipe giù.
- */
 export default function LiberyBottomSheet({
   open,
   onOpenChange,
   title,
   children,
   panelClass,
+  heading,
 }: LiberyBottomSheetProps) {
-  const ref = useRef<HTMLDialogElement>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const dragYRef = useRef(0);
-  const draggingRef = useRef(false);
+  const dragStartYRef = useRef(0);
+  const dragDyRef = useRef(0);
   const onOpenChangeRef = useRef(onOpenChange);
   onOpenChangeRef.current = onOpenChange;
 
-  const [scrimVisible, setScrimVisible] = useState(false);
-  const [panelAnim, setPanelAnim] = useState<PanelAnim>('off');
+  const [mounted, setMounted] = useState(open);
+  const [phase, setPhase] = useState<PanelPhase>(open ? 'entering' : 'closed');
+  const [scrimOn, setScrimOn] = useState(open);
+  const [dragging, setDragging] = useState(false);
+  const [snapping, setSnapping] = useState(false);
 
-  useFocusTrap(panelRef, open || panelAnim !== 'off');
+  const isInteractive = mounted && phase !== 'closed';
 
-  // Gestione chiusura nativa (tasto Escape, el.close() da codice esterno)
+  useBodyScrollLock(isInteractive);
+  useFocusTrap(panelRef, isInteractive);
+
+  const requestClose = useCallback(() => {
+    onOpenChangeRef.current(false);
+  }, []);
+
   useEffect(() => {
-    const el = ref.current;
+    const el = dialogRef.current;
     if (!el) return;
     function onNativeClose() {
       onOpenChangeRef.current(false);
-      setScrimVisible(false);
-      setPanelAnim('off');
+      setMounted(false);
+      setPhase('closed');
+      setScrimOn(false);
+      setDragging(false);
+      setSnapping(false);
     }
     el.addEventListener('close', onNativeClose);
     return () => el.removeEventListener('close', onNativeClose);
   }, []);
 
-  /**
-   * Apertura: useLayoutEffect → si esegue PRIMA della paint.
-   * Così il browser vede il pannello già con la classe --open
-   * (che grazie a `animation-fill-mode: backwards` parte da translateY(100%))
-   * nella stessa paint in cui il dialog diventa visibile.
-   * Nessun "salto" perché non c'è mai un frame senza animazione attiva.
-   */
   useLayoutEffect(() => {
     if (!open) return;
-    const el = ref.current;
-    if (el && !el.open) void el.showModal();
-    setScrimVisible(true);
-    setPanelAnim('open');
+    const dlg = dialogRef.current;
+    if (dlg && !dlg.open) dlg.showModal();
+    setMounted(true);
+    setScrimOn(true);
+    setPhase('entering');
+    const id = requestAnimationFrame(() => setPhase('open'));
+    return () => cancelAnimationFrame(id);
   }, [open]);
 
-  /**
-   * Chiusura: useEffect → si esegue dopo la paint (va bene, stiamo
-   * avviando l'animazione di uscita, non l'ingresso).
-   */
   useEffect(() => {
     if (open) return;
-    const el = ref.current;
-    setScrimVisible(false);
-    if (!el?.open) {
-      setPanelAnim('off');
-      return;
-    }
-    setPanelAnim('leaving');
+    if (!mounted) return;
+    setScrimOn(false);
+    setPhase('leaving');
     const timer = window.setTimeout(() => {
-      setPanelAnim('off');
-      if (el.open) el.close();
+      const dlg = dialogRef.current;
+      if (dlg?.open) dlg.close();
+      setMounted(false);
+      setPhase('closed');
+      setDragging(false);
+      setSnapping(false);
+      if (panelRef.current) panelRef.current.style.removeProperty('transform');
     }, PANEL_MS);
     return () => window.clearTimeout(timer);
-  }, [open]);
+  }, [open, mounted]);
 
-  function requestClose() {
-    if (!open) return;
-    onOpenChange(false);
-  }
-
-  function dismissFromBackdrop(e: React.MouseEvent) {
-    if (e.target !== e.currentTarget) return;
-    e.preventDefault();
-    e.stopPropagation();
-    requestClose();
+  function clearDragStyle() {
+    const panel = panelRef.current;
+    if (!panel) return;
+    panel.style.removeProperty('transform');
+    setDragging(false);
+    setSnapping(false);
   }
 
   function onHandlePointerDown(e: React.PointerEvent) {
-    if (e.button !== 0) return;
-    draggingRef.current = true;
-    dragYRef.current = e.clientY;
+    if (e.button !== 0 || phase === 'leaving') return;
+    dragStartYRef.current = e.clientY;
+    dragDyRef.current = 0;
+    setDragging(true);
+    setSnapping(false);
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }
 
   function onHandlePointerMove(e: React.PointerEvent) {
-    if (!draggingRef.current || !panelRef.current) return;
-    const dy = Math.max(0, e.clientY - dragYRef.current);
-    // Lo stile inline sovrascrive l'animation fill — nessun conflitto
+    if (!dragging || !panelRef.current) return;
+    const dy = Math.max(0, e.clientY - dragStartYRef.current);
+    dragDyRef.current = dy;
     panelRef.current.style.transform = `translateY(${dy}px)`;
   }
 
   function onHandlePointerUp(e: React.PointerEvent) {
-    if (!draggingRef.current) return;
-    draggingRef.current = false;
-    const dy = Math.max(0, e.clientY - dragYRef.current);
+    if (!dragging) return;
+    const dy = dragDyRef.current;
     try {
       (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
     } catch {
       // ignore
     }
-    // Rimuovi lo stile inline — il pannello torna alla posizione dell'animation fill
-    if (panelRef.current) panelRef.current.style.removeProperty('transform');
-    if (dy >= DISMISS_DRAG_PX) requestClose();
+
+    if (dy >= DISMISS_DRAG_PX) {
+      clearDragStyle();
+      requestClose();
+      return;
+    }
+
+    if (dy > 6 && panelRef.current) {
+      setSnapping(true);
+      panelRef.current.style.transform = 'translateY(0)';
+      window.setTimeout(clearDragStyle, SNAP_MS);
+      return;
+    }
+
+    clearDragStyle();
   }
 
-  if (!open && panelAnim === 'off') return null;
+  function dismissFromBackdrop(e: React.MouseEvent) {
+    if (e.target !== e.currentTarget) return;
+    e.preventDefault();
+    requestClose();
+  }
+
+  if (!mounted && !open) return null;
 
   return (
     <dialog
-      ref={ref}
-      className={['libery-bottom-sheet-dlg', scrimVisible ? 'libery-bottom-sheet-dlg--open' : '']
+      ref={dialogRef}
+      className={[
+        'libery-bottom-sheet-dlg',
+        scrimOn ? 'libery-bottom-sheet-dlg--open' : '',
+      ]
         .filter(Boolean)
         .join(' ')}
       aria-modal="true"
@@ -157,9 +181,11 @@ export default function LiberyBottomSheet({
           ref={panelRef}
           className={[
             'libery-bottom-sheet-panel',
-            panelAnim === 'open' ? 'libery-bottom-sheet-panel--open' : '',
-            panelAnim === 'leaving' ? 'libery-bottom-sheet-panel--leaving' : '',
             'libery-material-surface',
+            phase === 'open' ? 'libery-bottom-sheet-panel--open' : '',
+            phase === 'leaving' ? 'libery-bottom-sheet-panel--leaving' : '',
+            dragging ? 'libery-bottom-sheet-panel--dragging' : '',
+            snapping ? 'libery-bottom-sheet-panel--snap-back' : '',
             panelClass,
           ]
             .filter(Boolean)
@@ -176,6 +202,7 @@ export default function LiberyBottomSheet({
           >
             <div className="libery-bottom-sheet-handle" aria-hidden />
           </div>
+          {heading ? <div className="libery-bottom-sheet-heading-wrap">{heading}</div> : null}
           <div className="libery-bottom-sheet-scroll">{children}</div>
         </div>
       </div>

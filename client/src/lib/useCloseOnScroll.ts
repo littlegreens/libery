@@ -45,14 +45,19 @@ export function useCloseOnScroll(open: boolean, onClose: () => void, anchorRef: 
       target.addEventListener('scroll', close, { passive: true });
     }
 
-    // Rotella/trackpad: lo scroll spesso non propaga `scroll` fino a window
-    document.addEventListener('wheel', close, { capture: true, passive: true });
+    // Rotella/trackpad: ignora scroll dentro bottom sheet (contenuto scrollabile)
+    const onWheel = (e: WheelEvent) => {
+      const t = e.target;
+      if (t instanceof Element && t.closest('.libery-bottom-sheet-scroll')) return;
+      close();
+    };
+    document.addEventListener('wheel', onWheel, { capture: true, passive: true });
 
     return () => {
       for (const target of scrollTargets) {
         target.removeEventListener('scroll', close);
       }
-      document.removeEventListener('wheel', close, { capture: true });
+      document.removeEventListener('wheel', onWheel, { capture: true });
     };
   }, [open, onClose, anchorRef]);
 }

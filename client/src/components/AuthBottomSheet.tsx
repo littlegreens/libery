@@ -1,6 +1,5 @@
-import { useEffect, useRef } from 'react';
 import AuthForm from '@/components/AuthForm';
-import { useFocusTrap } from '@/hooks/useFocusTrap';
+import LiberyBottomSheet from '@/components/LiberyBottomSheet';
 import type { AuthUser } from '@/stores/authStore';
 
 type Props = {
@@ -11,43 +10,28 @@ type Props = {
 };
 
 export default function AuthBottomSheet({ open, onClose, initialMode = 'login', onSuccess }: Props) {
-  const sheetRef = useRef<HTMLElement>(null);
-  useFocusTrap(sheetRef, open);
-
-  useEffect(() => {
-    if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [open]);
-
-  if (!open) return null;
+  const title = initialMode === 'register' ? 'Registrati' : 'Accedi';
 
   function handleSuccess(user: AuthUser) {
     onClose();
     onSuccess?.(user);
   }
 
-  const title = initialMode === 'register' ? 'Registrati' : 'Accedi';
-
   return (
-    <>
-      <button type="button" className="auth-sheet-backdrop" onClick={onClose} aria-label="Chiudi" />
-      <section
-        ref={sheetRef}
-        className="auth-sheet"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="auth-sheet-title"
-      >
-        <span className="auth-sheet-handle" aria-hidden />
-        <h2 id="auth-sheet-title" className="auth-sheet-title h6 mb-3 text-center">
-          {title}
-        </h2>
+    <LiberyBottomSheet
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+      title={title}
+      panelClass="libery-bottom-sheet-panel--auth"
+      heading={
+        <h2 className="libery-auth-sheet-title h6 mb-0 text-center">{title}</h2>
+      }
+    >
+      <div className="libery-auth-sheet">
         <AuthForm initialMode={initialMode} onSuccess={handleSuccess} />
-      </section>
-    </>
+      </div>
+    </LiberyBottomSheet>
   );
 }

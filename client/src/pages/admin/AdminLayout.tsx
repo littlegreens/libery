@@ -1,6 +1,6 @@
 import { Link, Outlet, Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
-import { useAuthHydrated } from '@/hooks/useAuthHydrated';
+import { useSessionBootstrap } from '@/hooks/useSessionBootstrap';
 import LiberyLoading from '@/components/LiberyLoading';
 import { LiberyButton, MdNavigateButton } from '@/lib/material/md-react';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
@@ -20,11 +20,10 @@ function isNavActive(pathname: string, to: string, end?: boolean) {
 export default function AdminLayout() {
   useDocumentTitle('Admin');
   const location = useLocation();
-  const hydrated = useAuthHydrated();
-  const user = useAuthStore((s) => s.user);
+  const { ready, user, accessToken } = useSessionBootstrap();
   const logout = useAuthStore((s) => s.logout);
 
-  if (!hydrated) {
+  if (!ready) {
     return (
       <div className="admin-layout min-vh-100 d-flex align-items-center justify-content-center">
         <LiberyLoading variant="page" label="Caricamento…" />
@@ -32,8 +31,14 @@ export default function AdminLayout() {
     );
   }
 
-  if (!user) {
-    return <Navigate to="/home" replace state={{ from: location.pathname }} />;
+  if (!accessToken || !user) {
+    return (
+      <Navigate
+        to="/entra"
+        replace
+        state={{ from: location.pathname }}
+      />
+    );
   }
 
   if (user.role !== 'admin') {

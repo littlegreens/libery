@@ -57,6 +57,7 @@ function authResponse(user: {
       id: user.id,
       email: user.email,
       displayName: user.displayName,
+      avatarUrl: user.avatarUrl ?? null,
       role: user.role,
       libriExtra: user.libriExtra,
       libriOggiUsed: user.libriOggiUsed,

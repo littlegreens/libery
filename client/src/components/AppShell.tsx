@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { api } from '@/lib/api';
+import { useAuthHydrated } from '@/hooks/useAuthHydrated';
 import AuthBottomSheet from '@/components/AuthBottomSheet';
 import BrandLogo from '@/components/BrandLogo';
 import CameraFab from '@/components/CameraFab';
@@ -7,7 +9,6 @@ import CameraFlow from '@/components/CameraFlow';
 import LiberyContextualTopBar, {
   type LiberyContextualTopBarConfig,
 } from '@/components/LiberyContextualTopBar';
-import ToastContainer from '@/components/ToastContainer';
 import UserAvatar from '@/components/UserAvatar';
 import { avatarSlotBadgeValue } from '@/lib/slotsDisplay';
 import { useAuthStore } from '@/stores/authStore';
@@ -84,9 +85,35 @@ export default function AppShell() {
   const [authSheetMode, setAuthSheetMode] = useState<'login' | 'register'>('login');
   const [pageBar, setPageBar] = useState<ShellPageBarConfig | null>(null);
 
+  const hydrated = useAuthHydrated();
   const loggedIn = useAuthStore((s) => s.isLoggedIn());
   const user = useAuthStore((s) => s.user);
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const refreshToken = useAuthStore((s) => s.refreshToken);
+  const setAuth = useAuthStore((s) => s.setAuth);
   const logout = useAuthStore((s) => s.logout);
+
+  /** Sessioni salvate prima del fix login: ricarica avatar da `/auth/me`. */
+  useEffect(() => {
+    if (!hydrated || !accessToken || !user || user.avatarUrl) return;
+    let cancelled = false;
+    api
+      .get('/auth/me')
+      .then(({ data }) => {
+        if (cancelled) return;
+        const u = data.user;
+        if (!u?.avatarUrl) return;
+        setAuth({
+          accessToken,
+          refreshToken: refreshToken ?? '',
+          user: { ...user, avatarUrl: u.avatarUrl },
+        });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [hydrated, accessToken, user, refreshToken, setAuth]);
   const slotsFree = useSlotsStore((s) => s.slots?.slotsFree);
   const refreshSlots = useSlotsStore((s) => s.refreshSlots);
 
@@ -403,7 +430,6 @@ export default function AppShell() {
         </div>
       </aside>
 
-      <ToastContainer />
     </div>
   );
 }

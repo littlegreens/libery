@@ -1,5 +1,6 @@
 import { Navigate, Routes, Route } from 'react-router-dom';
 import AppShell from '@/components/AppShell';
+import ToastContainer from '@/components/ToastContainer';
 import RootRedirect from '@/components/RootRedirect';
 import AuthPage from '@/pages/AuthPage';
 import MapPage from '@/pages/MapPage';
@@ -21,6 +22,7 @@ import NotFoundPage from '@/components/NotFoundPage';
 
 export default function App() {
   return (
+    <>
     <Routes>
       <Route path="/entra" element={<AuthPage />} />
       <Route path="/registrati" element={<AuthPage />} />
@@ -48,5 +50,7 @@ export default function App() {
       </Route>
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
+    <ToastContainer />
+    </>
   );
 }
