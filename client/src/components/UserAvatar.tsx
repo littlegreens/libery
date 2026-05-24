@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import LiberyNumChip from '@/components/LiberyNumChip';
 import type { AuthUser } from '@/stores/authStore';
 
@@ -25,7 +25,13 @@ type Props = {
 
 export default function UserAvatar({ user, id, onClick, className = '', slotBadge }: Props) {
   const [imgFailed, setImgFailed] = useState(false);
-  const showImg = user.avatarUrl && !imgFailed;
+  const avatarSrc = user.avatarUrl ?? null;
+
+  useEffect(() => {
+    setImgFailed(false);
+  }, [avatarSrc]);
+
+  const showImg = avatarSrc && !imgFailed;
   const badge = slotBadge?.trim();
   const badgeEmpty = badge === '0';
 
@@ -44,7 +50,8 @@ export default function UserAvatar({ user, id, onClick, className = '', slotBadg
     >
       {showImg ? (
         <img
-          src={user.avatarUrl!}
+          key={avatarSrc}
+          src={avatarSrc}
           alt=""
           className="user-avatar-img"
           onError={() => setImgFailed(true)}

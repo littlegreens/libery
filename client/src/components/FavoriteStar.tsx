@@ -3,7 +3,6 @@ import { MdIcon } from '@/lib/material/md-react';
 import { BOOK_ACTION_ICONS } from '@/lib/bookActions';
 import { useFavoritesStore, type FavoriteBook } from '@/stores/favoritesStore';
 import { useAuthStore } from '@/stores/authStore';
-import { toast } from '@/stores/toastStore';
 
 type Props = {
   bookId: string;
@@ -42,7 +41,7 @@ export default function FavoriteStar({
     try {
       await toggle(bookId, book);
     } catch {
-      toast.error('Preferito non aggiornato');
+      // toast già mostrato dallo store
     } finally {
       setBusy(false);
     }

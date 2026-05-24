@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
+import { withAvatarCacheBust } from '@/lib/avatarUrl';
 import { useAuthHydrated } from '@/hooks/useAuthHydrated';
 import AuthBottomSheet from '@/components/AuthBottomSheet';
 import BrandLogo from '@/components/BrandLogo';
@@ -106,7 +107,7 @@ export default function AppShell() {
         setAuth({
           accessToken,
           refreshToken: refreshToken ?? '',
-          user: { ...user, avatarUrl: u.avatarUrl },
+          user: { ...user, avatarUrl: withAvatarCacheBust(u.avatarUrl) },
         });
       })
       .catch(() => {});

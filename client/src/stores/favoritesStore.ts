@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
+import { toast } from '@/stores/toastStore';
 
 /**
  * Store globale dei preferiti: tiene un Set di bookId per accesso O(1) dalle card libro.
@@ -68,18 +69,20 @@ export const useFavoritesStore = create<FavoritesState>((set, get) => ({
 
   toggle: async (bookId, book) => {
     const wasFavorite = get().ids.has(bookId);
-    // Optimistic update
-    const nextIds = new Set(get().ids);
-    let nextEntries = get().entries;
+    const prevIds = get().ids;
+    const prevEntries = get().entries;
+
+    const nextIds = new Set(prevIds);
+    let nextEntries = prevEntries;
     if (wasFavorite) {
       nextIds.delete(bookId);
-      nextEntries = get().entries.filter((e) => e.bookId !== bookId);
+      nextEntries = prevEntries.filter((e) => e.bookId !== bookId);
     } else {
       nextIds.add(bookId);
       if (book) {
         nextEntries = [
           { bookId, favoritedAt: new Date().toISOString(), book },
-          ...get().entries.filter((e) => e.bookId !== bookId),
+          ...prevEntries.filter((e) => e.bookId !== bookId),
         ];
       }
     }
@@ -88,19 +91,17 @@ export const useFavoritesStore = create<FavoritesState>((set, get) => ({
     try {
       if (wasFavorite) {
         await api.delete(`/user/favorites/${bookId}`);
+        toast.success('Rimosso dai preferiti');
       } else {
         await api.post(`/user/favorites/${bookId}`);
-        // Se non avevamo i dati del libro, ricarica per arricchire entries
         if (!book) await get().load(true);
+        toast.success('Aggiunto ai preferiti');
       }
       return !wasFavorite;
-    } catch (err) {
-      // rollback
-      const rollback = new Set(get().ids);
-      if (wasFavorite) rollback.add(bookId);
-      else rollback.delete(bookId);
-      set({ ids: rollback });
-      throw err;
+    } catch {
+      set({ ids: prevIds, entries: prevEntries });
+      toast.error('Preferito non aggiornato');
+      throw new Error('favorite_toggle_failed');
     }
   },
 

@@ -84,6 +84,8 @@ export default function BookListRowMenu({ items }: Props) {
     setFavBusy(true);
     try {
       await toggleFavorite(items.favorite.bookId, items.favorite.book);
+    } catch {
+      // toast già mostrato dallo store
     } finally {
       setFavBusy(false);
       setOpen(false);

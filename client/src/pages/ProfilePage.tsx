@@ -10,6 +10,7 @@ import { useSlotsStore } from '@/stores/slotsStore';
 import { toast } from '@/stores/toastStore';
 import { useMdNativeFormBridge } from '@/lib/useMdNativeFormBridge';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { withAvatarCacheBust } from '@/lib/avatarUrl';
 
 type ProfileResponse = {
   user: AuthUser & {
@@ -111,11 +112,16 @@ export default function ProfilePage() {
         setProfile(u);
         setDisplayName(u.displayName ?? '');
         const currentUser = useAuthStore.getState().user;
-        if (accessToken && refreshToken && currentUser && u.emailVerified !== undefined) {
+        if (accessToken && refreshToken && currentUser) {
           setAuth({
             accessToken,
             refreshToken,
-            user: { ...currentUser, emailVerified: u.emailVerified },
+            user: {
+              ...currentUser,
+              displayName: u.displayName,
+              avatarUrl: u.avatarUrl,
+              emailVerified: u.emailVerified,
+            },
           });
         }
         setStats({
@@ -192,6 +198,7 @@ export default function ProfilePage() {
     setSaving(true);
     try {
       let latestUser: AuthUser | null = null;
+      let bustedAvatarUrl: string | null = null;
 
       if (avatarFile) {
         const fd = new FormData();
@@ -199,9 +206,10 @@ export default function ProfilePage() {
         const { data } = await api.post<{ user: AuthUser; avatarUrl: string }>('/user/avatar', fd, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
+        bustedAvatarUrl = withAvatarCacheBust(data.avatarUrl ?? data.user.avatarUrl);
         latestUser = {
           ...data.user,
-          avatarUrl: `${data.avatarUrl}?v=${Date.now()}`,
+          avatarUrl: bustedAvatarUrl,
         };
         setAvatarFile(null);
         if (avatarPreview?.startsWith('blob:')) URL.revokeObjectURL(avatarPreview);
@@ -217,7 +225,10 @@ export default function ProfilePage() {
       }
 
       const { data } = await api.patch<{ user: AuthUser }>('/user/profile', patchBody);
-      latestUser = data.user;
+      latestUser = {
+        ...data.user,
+        avatarUrl: bustedAvatarUrl ?? data.user.avatarUrl ?? null,
+      };
 
       if (accessToken && refreshToken && latestUser) {
         setAuth({ accessToken, refreshToken, user: latestUser });
@@ -247,7 +258,7 @@ export default function ProfilePage() {
           onClick={() => fileInputRef.current?.click()}
         >
           {heroAvatarSrc ? (
-            <img src={heroAvatarSrc} alt="" />
+            <img key={heroAvatarSrc} src={heroAvatarSrc} alt="" />
           ) : (
             <span>{initials}</span>
           )}
